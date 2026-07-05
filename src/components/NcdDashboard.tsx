@@ -1,0 +1,1075 @@
+import React, { useState, useMemo, useEffect } from "react";
+import { 
+  Users, CheckCircle2, AlertTriangle, ShieldAlert, Search, Filter, 
+  MapPin, Eye, Trash2, SlidersHorizontal, ArrowUpDown, ChevronDown, 
+  Download, FileSpreadsheet, RotateCcw, Cigarette, Wine, Flame, EyeOff,
+  Pencil, PlusCircle, History, Apple, Dumbbell, Smile, Moon
+} from "lucide-react";
+import { ScreeningRecord, DistrictType, LOCATION_DATA } from "../types";
+
+interface NcdDashboardProps {
+  records: ScreeningRecord[];
+  onDeleteRecord: (id: number) => void;
+  onClearAll: () => void;
+  onSelectRecord: (record: ScreeningRecord) => void;
+  onEditRecord?: (record: ScreeningRecord) => void;
+  onAddScreeningClicked?: () => void;
+  onFollowUpRecord?: (record: ScreeningRecord) => void;
+}
+
+// Reusable custom circular progress gauge
+const RiskDoughnut: React.FC<{
+  normal: number;
+  risk: number;
+  danger: number;
+  title: string;
+}> = ({ normal, risk, danger, title }) => {
+  const total = normal + risk + danger;
+  
+  const pctNormal = total > 0 ? Math.round((normal / total) * 100) : 0;
+  const pctRisk = total > 0 ? Math.round((risk / total) * 100) : 0;
+  const pctDanger = total > 0 ? Math.round((danger / total) * 100) : 0;
+
+  // SVG parameters
+  const size = 160;
+  const strokeWidth = 14;
+  const center = size / 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  // Segments calculation
+  const offsetNormal = circumference;
+  const offsetRisk = offsetNormal - (circumference * pctNormal) / 100;
+  const offsetDanger = offsetRisk - (circumference * pctRisk) / 100;
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col items-center">
+      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center mb-4">{title}</h4>
+      
+      {total === 0 ? (
+        <div className="h-[160px] flex flex-col items-center justify-center text-slate-400 text-xs text-center space-y-1">
+          <EyeOff className="w-8 h-8 text-slate-300" />
+          <p>ไม่มีข้อมูลแสดงผล</p>
+        </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row items-center gap-6 w-full justify-center">
+          
+          {/* Circular SVG Chart */}
+          <div className="relative w-[160px] h-[160px] shrink-0">
+            <svg width={size} height={size} className="transform -rotate-90">
+              {/* Background circle */}
+              <circle
+                cx={center}
+                cy={center}
+                r={radius}
+                fill="transparent"
+                stroke="#f1f5f9"
+                strokeWidth={strokeWidth}
+              />
+              
+              {/* Normal Segment (White/Greenish) */}
+              {pctNormal > 0 && (
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  fill="transparent"
+                  stroke="#10b981" // emerald-500
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference - (circumference * pctNormal) / 100}
+                />
+              )}
+
+              {/* Risk Segment */}
+              {pctRisk > 0 && (
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  fill="transparent"
+                  stroke="#f59e0b" // amber-500
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference - (circumference * pctRisk) / 100}
+                  style={{ transform: `rotate(${pctNormal * 3.6}deg)`, transformOrigin: "center" }}
+                />
+              )}
+
+              {/* Danger Segment */}
+              {pctDanger > 0 && (
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  fill="transparent"
+                  stroke="#ef4444" // red-500
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference - (circumference * pctDanger) / 100}
+                  style={{ transform: `rotate(${(pctNormal + pctRisk) * 3.6}deg)`, transformOrigin: "center" }}
+                />
+              )}
+            </svg>
+
+            {/* Inner Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-black text-slate-800">{total}</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">เคสทั้งหมด</span>
+            </div>
+          </div>
+
+          {/* Legend Table */}
+          <div className="space-y-2 w-full max-w-[140px]">
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
+                <span className="text-slate-600 font-medium">ปกติ</span>
+              </div>
+              <span className="font-bold text-slate-800">{normal} ราย ({pctNormal}%)</span>
+            </div>
+            
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 bg-amber-500 rounded-full" />
+                <span className="text-slate-600 font-medium">กลุ่มเสี่ยง</span>
+              </div>
+              <span className="font-bold text-slate-800">{risk} ราย ({pctRisk}%)</span>
+            </div>
+
+            <div className="flex justify-between items-center text-xs">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                <span className="text-slate-600 font-medium">สงสัยป่วย</span>
+              </div>
+              <span className="font-bold text-slate-800">{danger} ราย ({pctDanger}%)</span>
+            </div>
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+};
+
+const LifestyleBehaviors3O2S: React.FC<{
+  smokeCount: number;
+  alcoholCount: number;
+  noExerciseCount: number;
+  poorSleepCount: number;
+  foodSweetCount: number;
+  foodFatCount: number;
+  foodSaltCount: number;
+  total: number;
+}> = ({
+  smokeCount,
+  alcoholCount,
+  noExerciseCount,
+  poorSleepCount,
+  foodSweetCount,
+  foodFatCount,
+  foodSaltCount,
+  total
+}) => {
+  const getPct = (count: number) => {
+    return total > 0 ? Math.round((count / total) * 100) : 0;
+  };
+
+  const items = [
+    {
+      id: "sweet",
+      group: "3อ",
+      title: "อ.อาหาร (รสหวานจัด)",
+      count: foodSweetCount,
+      pct: getPct(foodSweetCount),
+      color: "bg-red-500",
+      barColor: "from-red-400 to-rose-500",
+      icon: <Apple className="w-3.5 h-3.5" />,
+      desc: "ทานหวานจัด/ปรุงเพิ่มหวานเป็นประจำ"
+    },
+    {
+      id: "fat",
+      group: "3อ",
+      title: "อ.อาหาร (รสมันจัด)",
+      count: foodFatCount,
+      pct: getPct(foodFatCount),
+      color: "bg-orange-500",
+      barColor: "from-orange-400 to-amber-500",
+      icon: <Apple className="w-3.5 h-3.5" />,
+      desc: "นิยมทานของทอด/ของมันจัดสูง"
+    },
+    {
+      id: "salt",
+      group: "3อ",
+      title: "อ.อาหาร (รสเค็มจัด)",
+      count: foodSaltCount,
+      pct: getPct(foodSaltCount),
+      color: "bg-amber-500",
+      barColor: "from-amber-400 to-yellow-500",
+      icon: <Flame className="w-3.5 h-3.5" />,
+      desc: "ปรุงเพิ่มเค็ม/ทานสำเร็จรูป/หมักดองบ่อย"
+    },
+    {
+      id: "exercise",
+      group: "3อ",
+      title: "อ.ออกกำลังกาย (นั่งนิ่ง)",
+      count: noExerciseCount,
+      pct: getPct(noExerciseCount),
+      color: "bg-blue-500",
+      barColor: "from-blue-400 to-indigo-500",
+      icon: <Dumbbell className="w-3.5 h-3.5" />,
+      desc: "ขาดการขยับ/นั่งทำงานนาน/ไม่ออกกำลังกาย"
+    },
+    {
+      id: "sleep",
+      group: "3อ",
+      title: "อ.อารมณ์ (พักผ่อนไม่เพียงพอ)",
+      count: poorSleepCount,
+      pct: getPct(poorSleepCount),
+      color: "bg-purple-500",
+      barColor: "from-purple-400 to-violet-500",
+      icon: <Moon className="w-3.5 h-3.5" />,
+      desc: "นอนเฉลี่ยน้อยกว่า 6 ชม./หลับยาก/เครียดสะสม"
+    },
+    {
+      id: "smoke",
+      group: "2ส",
+      title: "ส.สูบบุหรี่ (ยังสูบอยู่)",
+      count: smokeCount,
+      pct: getPct(smokeCount),
+      color: "bg-slate-600",
+      barColor: "from-slate-500 to-slate-700",
+      icon: <Cigarette className="w-3.5 h-3.5" />,
+      desc: "ยังสูบประจำ/เลิกสูบยังไม่ถึง 1 ปี"
+    },
+    {
+      id: "alcohol",
+      group: "2ส",
+      title: "ส.สุรา (ดื่มแอลกอฮอล์)",
+      count: alcoholCount,
+      pct: getPct(alcoholCount),
+      color: "bg-pink-600",
+      barColor: "from-pink-500 to-rose-600",
+      icon: <Wine className="w-3.5 h-3.5" />,
+      desc: "ดื่มแอลกอฮอล์เป็นประจำหรือครั้งคราว"
+    }
+  ];
+
+  // Find the highest risk factor
+  const maxRiskItem = [...items].sort((a, b) => b.count - a.count)[0];
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between h-full">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div className="flex items-center gap-1.5">
+            <div className="bg-rose-50 text-rose-600 p-1.5 rounded-xl shrink-0">
+              <Apple className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-slate-800">พฤติกรรมเสี่ยงสูง (3อ. 2ส.)</h4>
+              <p className="text-[9px] text-slate-400">สรุปอัตราความเสี่ยงตามหลัก 3อ. 2ส.</p>
+            </div>
+          </div>
+          <span className="text-[9px] bg-slate-50 text-slate-500 font-bold px-2 py-1 rounded-lg border border-slate-100 shrink-0">
+            วิเคราะห์ {total} ราย
+          </span>
+        </div>
+
+        {total === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center text-slate-400 text-xs text-center space-y-1">
+            <EyeOff className="w-8 h-8 text-slate-300" />
+            <p>ไม่มีข้อมูลแสดงผลพฤติกรรมสุขภาพ</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            
+            {/* Group: 3อ */}
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-1.5 bg-blue-50/50 p-1 rounded-lg border border-blue-100">
+                <span className="text-[9px] font-black bg-blue-600 text-white px-1.5 py-0.5 rounded-md">3อ</span>
+                <span className="text-[9px] text-blue-800 font-bold tracking-wide">อาหาร • ออกกำลังกาย • อารมณ์</span>
+              </div>
+              
+              <div className="space-y-3">
+                {items.filter(i => i.group === "3อ").map((item) => (
+                  <div key={item.id} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <span className={`${item.color} text-white p-1 rounded-md shrink-0`}>
+                          {item.icon}
+                        </span>
+                        {item.title}
+                      </span>
+                      <span className="text-slate-500 font-semibold text-[11px] shrink-0">
+                        {item.count} ราย <span className="text-slate-400">({item.pct}%)</span>
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className={`bg-gradient-to-r ${item.barColor} h-full rounded-full transition-all duration-500`} 
+                          style={{ width: `${item.pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-slate-400 block mt-0.5 font-medium pl-7 leading-none">{item.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Group: 2ส */}
+            <div className="space-y-2.5 pt-1">
+              <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                <span className="text-[9px] font-black bg-slate-600 text-white px-1.5 py-0.5 rounded-md">2ส</span>
+                <span className="text-[9px] text-slate-700 font-bold tracking-wide">สูบบุหรี่ • สุรา</span>
+              </div>
+              
+              <div className="space-y-3">
+                {items.filter(i => i.group === "2ส").map((item) => (
+                  <div key={item.id} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                        <span className={`${item.color} text-white p-1 rounded-md shrink-0`}>
+                          {item.icon}
+                        </span>
+                        {item.title}
+                      </span>
+                      <span className="text-slate-500 font-semibold text-[11px] shrink-0">
+                        {item.count} ราย <span className="text-slate-400">({item.pct}%)</span>
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                        <div 
+                          className={`bg-gradient-to-r ${item.barColor} h-full rounded-full transition-all duration-500`} 
+                          style={{ width: `${item.pct}%` }}
+                        />
+                      </div>
+                      <span className="text-[9px] text-slate-400 block mt-0.5 font-medium pl-7 leading-none">{item.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+      </div>
+
+      {total > 0 && maxRiskItem && maxRiskItem.count > 0 && (
+        <div className="text-[10px] text-slate-500 border-t border-slate-150 pt-2.5 mt-3 flex items-start gap-1.5 bg-rose-50/40 p-2.5 rounded-xl border border-rose-100/60">
+          <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+          <div className="leading-relaxed">
+            <span className="font-bold text-slate-700 block text-[10px]">พฤติกรรมเสี่ยงสูงหลักในชุมชน:</span>
+            <span>คือ <strong className="text-rose-700">{maxRiskItem.title}</strong> สูงถึง <strong className="text-rose-700">{maxRiskItem.pct}%</strong> ({maxRiskItem.count} เคส) แนะนำจัดกิจกรรมปรับเปลี่ยนพฤติกรรมเน้นหัวข้อนี้เป็นหลัก</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const NcdDashboard: React.FC<NcdDashboardProps> = ({ 
+  records, 
+  onDeleteRecord, 
+  onClearAll, 
+  onSelectRecord,
+  onEditRecord,
+  onAddScreeningClicked,
+  onFollowUpRecord
+}) => {
+  // Filters state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterModel, setFilterModel] = useState<"หมู่บ้าน" | "ตำบล" | "">("");
+  const [filterDistrict, setFilterDistrict] = useState<string>("");
+  const [filterSubdistrict, setFilterSubdistrict] = useState<string>("");
+  const [filterTargetArea, setFilterTargetArea] = useState<string>("");
+  const [filterRiskLevel, setFilterRiskLevel] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"date" | "name" | "age" | "bmi">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Cascading dropdown updates for filters
+  useEffect(() => {
+    setFilterDistrict("");
+    setFilterSubdistrict("");
+    setFilterTargetArea("");
+  }, [filterModel]);
+
+  useEffect(() => {
+    setFilterSubdistrict("");
+    setFilterTargetArea("");
+  }, [filterDistrict]);
+
+  useEffect(() => {
+    setFilterTargetArea("");
+  }, [filterSubdistrict]);
+
+  // Dynamic options for filters
+  const availableDistricts = useMemo(() => {
+    if (filterModel) {
+      return Object.keys(LOCATION_DATA[filterModel]) as DistrictType[];
+    }
+    const districtsSet = new Set<string>();
+    Object.keys(LOCATION_DATA["หมู่บ้าน"]).forEach(d => districtsSet.add(d));
+    Object.keys(LOCATION_DATA["ตำบล"]).forEach(d => districtsSet.add(d));
+    return Array.from(districtsSet) as DistrictType[];
+  }, [filterModel]);
+
+  const availableSubdistricts = useMemo(() => {
+    if (!filterDistrict) return [];
+    if (filterModel) {
+      const subdistMap = (LOCATION_DATA[filterModel] as any)?.[filterDistrict] || {};
+      return Object.keys(subdistMap);
+    }
+    const subdistSet = new Set<string>();
+    const mbSubdists = (LOCATION_DATA["หมู่บ้าน"] as any)?.[filterDistrict] || {};
+    const tbSubdists = (LOCATION_DATA["ตำบล"] as any)?.[filterDistrict] || {};
+    Object.keys(mbSubdists).forEach(s => subdistSet.add(s));
+    Object.keys(tbSubdists).forEach(s => subdistSet.add(s));
+    return Array.from(subdistSet);
+  }, [filterModel, filterDistrict]);
+
+  const availableTargetAreas = useMemo(() => {
+    if (!filterDistrict || !filterSubdistrict) return [];
+    if (filterModel) {
+      return (LOCATION_DATA[filterModel] as any)?.[filterDistrict]?.[filterSubdistrict] || [];
+    }
+    const areaSet = new Set<string>();
+    const mbAreas = (LOCATION_DATA["หมู่บ้าน"] as any)?.[filterDistrict]?.[filterSubdistrict] || [];
+    const tbAreas = (LOCATION_DATA["ตำบล"] as any)?.[filterDistrict]?.[filterSubdistrict] || [];
+    mbAreas.forEach((a: string) => areaSet.add(a));
+    tbAreas.forEach((a: string) => areaSet.add(a));
+    return Array.from(areaSet);
+  }, [filterModel, filterDistrict, filterSubdistrict]);
+
+  // Apply filters and sorting
+  const filteredRecords = useMemo(() => {
+    return (records || [])
+      .filter((r) => {
+        if (!r) return false;
+        
+        // Name / Phone match
+        const matchesSearch = 
+          ((r.name || "").toLowerCase().includes(searchTerm.toLowerCase())) || 
+          ((r.phone || "").includes(searchTerm));
+        
+        // Model type filter (with legacy fallback inference)
+        let recordModel = r.modelType || "";
+        if (!recordModel && r.district && r.targetArea) {
+          if ((LOCATION_DATA["หมู่บ้าน"] as any)?.[r.district]?.[r.subdistrict || ""]?.includes(r.targetArea)) {
+            recordModel = "หมู่บ้าน";
+          } else if ((LOCATION_DATA["ตำบล"] as any)?.[r.district]?.[r.subdistrict || ""]?.includes(r.targetArea)) {
+            recordModel = "ตำบล";
+          }
+        }
+        const matchesModel = filterModel ? recordModel === filterModel : true;
+
+        // District filter
+        const matchesDistrict = filterDistrict ? r.district === filterDistrict : true;
+
+        // Subdistrict filter
+        const matchesSubdistrict = filterSubdistrict ? r.subdistrict === filterSubdistrict : true;
+
+        // Target Area filter
+        const matchesTargetArea = filterTargetArea ? r.targetArea === filterTargetArea : true;
+
+        // Risk Level filter
+        let rLevel = "normal";
+        const htLevel = r.htResult?.level || "normal";
+        const dmLevel = r.dmResult?.level || "normal";
+        if (htLevel === "danger" || dmLevel === "danger") {
+          rLevel = "danger";
+        } else if (htLevel === "risk" || dmLevel === "risk") {
+          rLevel = "risk";
+        }
+
+        const matchesRisk = filterRiskLevel ? rLevel === filterRiskLevel : true;
+
+        return matchesSearch && matchesModel && matchesDistrict && matchesSubdistrict && matchesTargetArea && matchesRisk;
+      })
+      .sort((a, b) => {
+        let valA: any = a.id;
+        let valB: any = b.id;
+
+        if (sortBy === "name") {
+          valA = a.name;
+          valB = b.name;
+        } else if (sortBy === "age") {
+          valA = a.age;
+          valB = b.age;
+        } else if (sortBy === "bmi") {
+          valA = parseFloat(a.bmi);
+          valB = parseFloat(b.bmi);
+        }
+
+        if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+        if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+  }, [records, searchTerm, filterModel, filterDistrict, filterSubdistrict, filterTargetArea, filterRiskLevel, sortBy, sortOrder]);
+
+  // Stat computations based on filteredRecords
+  const stats = useMemo(() => {
+    let total = filteredRecords.length;
+    let normal = 0;
+    let risk = 0;
+    let danger = 0;
+
+    let htNormal = 0, htRisk = 0, htDanger = 0;
+    let dmNormal = 0, dmRisk = 0, dmDanger = 0;
+
+    // Lifestyle tallies
+    let smokeCount = 0;
+    let alcoholCount = 0;
+    let sodiumCount = 0;
+    let noExerciseCount = 0;
+    let poorSleepCount = 0;
+
+    let foodSweetCount = 0;
+    let foodFatCount = 0;
+    let foodSaltCount = 0;
+    let foodAnyRiskCount = 0;
+
+    filteredRecords.forEach((r) => {
+      // Main group breakdown
+      if (r.htResult.level === "danger" || r.dmResult.level === "danger") {
+        danger++;
+      } else if (r.htResult.level === "risk" || r.dmResult.level === "risk") {
+        risk++;
+      } else {
+        normal++;
+      }
+
+      // HT specific breakdown
+      if (r.htResult.level === "danger") htDanger++;
+      else if (r.htResult.level === "risk") htRisk++;
+      else htNormal++;
+
+      // DM specific breakdown
+      if (r.dmResult.level === "danger") dmDanger++;
+      else if (r.dmResult.level === "risk") dmRisk++;
+      else dmNormal++;
+
+      // Lifestyle risks tallies
+      if (r.smoking?.includes("สูบอยู่")) smokeCount++;
+      
+      const isAlcohol = r.alcohol?.includes("ประจำ") || r.alcohol?.includes("ครั้งคราว");
+      if (isAlcohol) alcoholCount++;
+      
+      if (r.exercise?.includes("ไม่ออก")) noExerciseCount++;
+      if (r.sleep?.includes("น้อยกว่า 6")) poorSleepCount++;
+
+      const hasSweetRisk = r.foodHabit?.sweet?.level === "danger" || r.foodHabit?.sweet?.level === "risk";
+      const hasFatRisk = r.foodHabit?.fat?.level === "danger" || r.foodHabit?.fat?.level === "risk";
+      const hasSaltRisk = r.foodHabit?.salt?.level === "danger" || r.foodHabit?.salt?.level === "risk" || r.sodium?.includes("เค็มประจำ") || r.sodium?.includes("ปานกลาง");
+
+      if (hasSweetRisk) foodSweetCount++;
+      if (hasFatRisk) foodFatCount++;
+      if (hasSaltRisk) foodSaltCount++;
+      
+      if (hasSweetRisk || hasFatRisk || r.sodium?.includes("เค็มประจำ") || r.foodHabit?.salt?.level === "danger") {
+        foodAnyRiskCount++;
+      }
+    });
+
+    return {
+      total,
+      normal,
+      risk,
+      danger,
+      ht: { normal: htNormal, risk: htRisk, danger: htDanger },
+      dm: { normal: dmNormal, risk: dmRisk, danger: dmDanger },
+      lifestyle: { 
+        smokeCount, 
+        alcoholCount, 
+        sodiumCount, 
+        noExerciseCount,
+        poorSleepCount,
+        foodSweetCount,
+        foodFatCount,
+        foodSaltCount,
+        foodAnyRiskCount
+      }
+    };
+  }, [filteredRecords]);
+
+  const handleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("desc");
+    }
+  };
+
+  // CSV Data Export function
+  const handleExportCSV = () => {
+    if (filteredRecords.length === 0) return;
+    
+    // Construct rows
+    const headers = ["ID", "Date", "VisitNumber", "Name", "Age", "Gender", "Phone", "District", "TargetArea", "BMI", "BP_Systolic", "BP_Diastolic", "HT_Result", "BloodSugar", "DM_Result", "FollowUpAction"];
+    const rows = filteredRecords.map((r) => [
+      r.id,
+      r.date,
+      r.visitNumber,
+      `"${r.name}"`,
+      r.age,
+      r.gender,
+      r.phone,
+      r.district,
+      `"${r.targetArea}"`,
+      r.bmi,
+      r.bpSys,
+      r.bpDia,
+      r.htResult.level,
+      r.sugar,
+      r.dmResult.level,
+      `"${r.followUpAction}"`
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+      + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `ncd_screening_export_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="space-y-6">
+
+      {/* Cascading Location & Model Filters (Top-Level) */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-50 text-blue-600 p-2 rounded-xl shrink-0">
+              <Filter className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">กรองข้อมูลโมเดลและพื้นที่โครงการ</h3>
+              <p className="text-[10px] text-slate-500">กรองสถิติและการคัดกรองทั้งหมดตามข้อมูลโมเดล อำเภอ ตำบล และพื้นที่เป้าหมาย</p>
+            </div>
+          </div>
+          {/* Quick Clear Filter Button if any selected */}
+          {(filterModel || filterDistrict || filterSubdistrict || filterTargetArea) && (
+            <button 
+              onClick={() => {
+                setFilterModel("");
+                setFilterDistrict("");
+                setFilterSubdistrict("");
+                setFilterTargetArea("");
+              }}
+              className="text-[10px] font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg self-start sm:self-center transition-colors"
+            >
+              ล้างตัวกรองพื้นที่ทั้งหมด
+            </button>
+          )}
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* 1. Model Filter */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-400">โมเดล</label>
+            <select 
+              value={filterModel} 
+              onChange={(e) => setFilterModel(e.target.value as any)}
+              className="w-full text-xs border border-slate-300 rounded-xl px-3 py-2.5 bg-white outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700"
+            >
+              <option value="">ทั้งหมด (หมู่บ้าน / ตำบล)</option>
+              <option value="หมู่บ้าน">หมู่บ้าน</option>
+              <option value="ตำบล">ตำบล</option>
+            </select>
+          </div>
+
+          {/* 2. District Filter */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-400">อำเภอ</label>
+            <select 
+              value={filterDistrict} 
+              onChange={(e) => setFilterDistrict(e.target.value)}
+              className="w-full text-xs border border-slate-300 rounded-xl px-3 py-2.5 bg-white outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700"
+            >
+              <option value="">ทุกอำเภอ</option>
+              {availableDistricts.map((dist) => (
+                <option key={dist} value={dist}>อ.{dist}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Subdistrict Filter */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-400">ตำบล</label>
+            <select 
+              value={filterSubdistrict} 
+              onChange={(e) => setFilterSubdistrict(e.target.value)}
+              disabled={!filterDistrict}
+              className="w-full text-xs border border-slate-300 rounded-xl px-3 py-2.5 bg-white outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">{filterDistrict ? "ทุกตำบล" : "โปรดเลือกอำเภอก่อน"}</option>
+              {availableSubdistricts.map((sub, idx) => (
+                <option key={idx} value={sub}>ต.{sub}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. Target Area Filter */}
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-slate-400">พื้นที่เป้าหมาย / หมู่บ้าน</label>
+            <select 
+              value={filterTargetArea} 
+              onChange={(e) => setFilterTargetArea(e.target.value)}
+              disabled={!filterSubdistrict}
+              className="w-full text-xs border border-slate-300 rounded-xl px-3 py-2.5 bg-white outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+            >
+              <option value="">{filterSubdistrict ? "ทุกพื้นที่เป้าหมาย" : "โปรดเลือกตำบลก่อน"}</option>
+              {availableTargetAreas.map((area, idx) => (
+                <option key={idx} value={area}>{area}</option>
+              ))}
+            </select>
+          </div>
+
+        </div>
+      </div>
+      
+      {/* Metric Scorecards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        {/* Card 1: Total */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4 relative overflow-hidden group">
+          <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 bg-slate-50 w-16 h-16 rounded-full -z-10 group-hover:scale-110 transition-transform" />
+          <div className="bg-blue-50 text-blue-600 p-3 rounded-xl shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">คัดกรองสะสม</span>
+            <span className="text-2xl font-black text-slate-800">{stats.total} <span className="text-xs font-normal text-slate-400">ราย</span></span>
+          </div>
+        </div>
+
+        {/* Card 2: Normal */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4 relative overflow-hidden group">
+          <div className="bg-emerald-50 text-emerald-600 p-3 rounded-xl shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">กลุ่มปกติ</span>
+            <span className="text-2xl font-black text-slate-800">{stats.normal} <span className="text-xs font-normal text-slate-400">ราย</span></span>
+          </div>
+        </div>
+
+        {/* Card 3: High Risk */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4 relative overflow-hidden group">
+          <div className="bg-amber-50 text-amber-600 p-3 rounded-xl shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">กลุ่มเสี่ยงสูง</span>
+            <span className="text-2xl font-black text-slate-800">{stats.risk} <span className="text-xs font-normal text-slate-400">ราย</span></span>
+          </div>
+        </div>
+
+        {/* Card 4: Danger */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4 relative overflow-hidden group">
+          <div className="bg-rose-50 text-rose-600 p-3 rounded-xl shrink-0">
+            <ShieldAlert className="w-5 h-5" />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">สงสัยป่วย (ส่งต่อ)</span>
+            <span className="text-2xl font-black text-slate-800">{stats.danger} <span className="text-xs font-normal text-slate-400">ราย</span></span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Doughnut Gauges and Lifestyle Risk Bars */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Hypertension Gauge */}
+        <RiskDoughnut 
+          normal={stats.ht.normal} 
+          risk={stats.ht.risk} 
+          danger={stats.ht.danger} 
+          title="สัดส่วนความเสี่ยงโรคความดันโลหิตสูง (HT)" 
+        />
+
+        {/* Diabetes Gauge */}
+        <RiskDoughnut 
+          normal={stats.dm.normal} 
+          risk={stats.dm.risk} 
+          danger={stats.dm.danger} 
+          title="สัดส่วนความเสี่ยงโรคเบาหวาน (DM)" 
+        />
+
+        {/* Lifestyle Risks 3O2S Chart Component */}
+        <LifestyleBehaviors3O2S 
+          smokeCount={stats.lifestyle.smokeCount}
+          alcoholCount={stats.lifestyle.alcoholCount}
+          noExerciseCount={stats.lifestyle.noExerciseCount}
+          poorSleepCount={stats.lifestyle.poorSleepCount}
+          foodSweetCount={stats.lifestyle.foodSweetCount}
+          foodFatCount={stats.lifestyle.foodFatCount}
+          foodSaltCount={stats.lifestyle.foodSaltCount}
+          total={stats.total}
+        />
+
+      </div>
+
+      {/* Filters and Search Bar Card */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        
+        {/* Row 1: Search & Core Actions */}
+        <div className="flex flex-col xl:flex-row gap-3.5 items-stretch xl:items-center">
+          
+          {/* Search Box */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+            <input 
+              type="text" 
+              placeholder="ค้นหาด้วยชื่อ-นามสกุล หรือเบอร์โทรศัพท์..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full text-xs rounded-xl border border-slate-300 pl-9 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Risk Level Selector */}
+          <select 
+            value={filterRiskLevel} 
+            onChange={(e) => setFilterRiskLevel(e.target.value)}
+            className="text-xs border border-slate-300 rounded-xl px-3 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500 shrink-0 font-semibold text-slate-700"
+          >
+            <option value="">แสดงทุกกลุ่มเสี่ยง</option>
+            <option value="normal">กลุ่มปกติ (ขาว)</option>
+            <option value="risk">กลุ่มเสี่ยงสูง (เหลือง)</option>
+            <option value="danger">สงสัยป่วย (แดง)</option>
+          </select>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Action: Add Screening */}
+            {onAddScreeningClicked && (
+              <button
+                onClick={onAddScreeningClicked}
+                className="bg-blue-600 border border-blue-700 hover:bg-blue-700 text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-all shadow-xs"
+              >
+                <PlusCircle className="w-4 h-4" />
+                เพิ่มการคัดกรอง
+              </button>
+            )}
+
+            {/* Action: Export CSV */}
+            <button
+              onClick={handleExportCSV}
+              disabled={filteredRecords.length === 0}
+              className="bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold text-xs py-3 px-3.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              ส่งออก Excel
+            </button>
+
+            {/* Action: Clear database */}
+            <button
+              onClick={onClearAll}
+              className="bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-600 font-semibold text-xs py-3 px-3.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+              ล้างข้อมูลทั้งหมด
+            </button>
+          </div>
+
+        </div>
+
+        {/* Current status indicators */}
+        <div className="flex flex-wrap gap-2 text-[10px] text-slate-400 font-semibold border-t border-slate-100 pt-2">
+          <span>พบรายชื่อทั้งหมด: {filteredRecords.length} เคส</span>
+          <span>•</span>
+          <span>เรียงลำดับโดย: {sortBy === "date" ? "วันที่คัดกรอง" : sortBy === "name" ? "ชื่อ-สกุล" : sortBy === "age" ? "อายุ" : "BMI"} ({sortOrder === "desc" ? "ล่าสุด" : "แรกสุด"})</span>
+        </div>
+
+      </div>
+
+      {/* Main Data Sheet Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-slate-150 text-slate-500 uppercase tracking-wider font-bold text-[10px]">
+                <th 
+                  className="py-3 px-5 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort("date")}
+                >
+                  <div className="flex items-center gap-1">
+                    วันที่ตรวจ / ครั้งที่
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                </th>
+                <th 
+                  className="py-3 px-5 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort("name")}
+                >
+                  <div className="flex items-center gap-1">
+                    ชื่อ-นามสกุล / ที่อยู่
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                </th>
+                <th 
+                  className="py-3 px-5 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort("age")}
+                >
+                  <div className="flex items-center gap-1">
+                    อายุ / เพศ
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                </th>
+                <th className="py-3 px-5 text-center">ความดัน (HT)</th>
+                <th className="py-3 px-5 text-center">เบาหวาน (DM)</th>
+                <th 
+                  className="py-3 px-5 text-center cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => handleSort("bmi")}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    BMI
+                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                </th>
+                <th className="py-3 px-5">ผลการจัดการเบื้องต้น</th>
+                <th className="py-3 px-5 text-center w-28">เครื่องมือ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
+                    <SlidersHorizontal className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                    ไม่พบรายชื่อหรือข้อมูลคัดกรองตามเงื่อนไขดังกล่าว
+                  </td>
+                </tr>
+              ) : (
+                filteredRecords.map((r) => {
+                  return (
+                    <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                      
+                      {/* Date & Visit */}
+                      <td className="py-4 px-5">
+                        <span className="font-semibold text-slate-800">{r.date}</span>
+                        <span className="text-[10px] text-blue-600 font-bold block">ครั้งที่ {r.visitNumber}</span>
+                      </td>
+
+                      {/* Name & Location */}
+                      <td className="py-4 px-5">
+                        <div className="font-bold text-slate-800 hover:text-blue-600 cursor-pointer text-sm" onClick={() => onSelectRecord(r)}>
+                          {r.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-0.5 mt-0.5">
+                          <MapPin className="w-3 h-3" />
+                          {r.address} {r.subdistrict ? `ต.${r.subdistrict} ` : ""}อ.{r.district} ({r.targetArea})
+                        </div>
+                      </td>
+
+                      {/* Age & Sex */}
+                      <td className="py-4 px-5 font-semibold text-slate-700">
+                        {r.age} ปี / {r.gender}
+                      </td>
+
+                      {/* HT */}
+                      <td className="py-4 px-5 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold shadow-xs ${
+                          r.htResult.level === "danger" ? "bg-red-50 text-red-700 border border-red-200" :
+                          r.htResult.level === "risk" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                          "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        }`}>
+                          {r.bpSys}/{r.bpDia} mmHg • {r.htResult.level === "danger" ? "สงสัยป่วย" : r.htResult.level === "risk" ? "กลุ่มเสี่ยง" : "ปกติ"}
+                        </span>
+                      </td>
+
+                      {/* DM */}
+                      <td className="py-4 px-5 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold shadow-xs ${
+                          !r.sugar || r.sugar === 0 ? "bg-slate-50 text-slate-500 border border-slate-200" :
+                          r.dmResult.level === "danger" ? "bg-red-50 text-red-700 border border-red-200" :
+                          r.dmResult.level === "risk" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                          "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        }`}>
+                          {r.sugar && r.sugar > 0 ? (
+                            <>{r.sugar} mg/dL • {r.dmResult.level === "danger" ? "สงสัยป่วย" : r.dmResult.level === "risk" ? "กลุ่มเสี่ยง" : "ปกติ"}</>
+                          ) : (
+                            "ไม่ได้ตรวจ"
+                          )}
+                        </span>
+                      </td>
+
+                      {/* BMI */}
+                      <td className="py-4 px-5 text-center font-mono font-bold text-slate-700">
+                        {r.bmi}
+                      </td>
+
+                      {/* Management Action */}
+                      <td className="py-4 px-5">
+                        <span className="font-semibold text-slate-700 block">{r.followUpAction}</span>
+                        {r.followUpNote && (
+                          <span className="text-[10px] text-slate-400 block max-w-[150px] truncate" title={r.followUpNote}>
+                            {r.followUpNote}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-4 px-5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => onSelectRecord(r)}
+                            className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                            title="ดูรายงานละเอียด & AI"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {onEditRecord && (
+                            <button
+                              onClick={() => onEditRecord(r)}
+                              className="bg-amber-50 hover:bg-amber-100 text-amber-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                              title="แก้ไขข้อมูล"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                          {onFollowUpRecord && (
+                            <button
+                              onClick={() => onFollowUpRecord(r)}
+                              className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                              title="บันทึกการติดตามตรวจครั้งถัดไป (โดยอ้างอิงข้อมูลชุดนี้)"
+                            >
+                              <History className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if(confirm(`คุณต้องการลบข้อมูลคัดกรองของคุณ "${r.name}" ใช่หรือไม่?`)) {
+                                onDeleteRecord(r.id);
+                              }
+                            }}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+                            title="ลบรายงานนี้"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  );
+};

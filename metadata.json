@@ -1,0 +1,6 @@
+{
+  "name": "NCDs Screening 35+",
+  "description": "ระบบคัดกรองและประเมินความเสี่ยงโรคไม่ติดต่อเรื้อรัง (ความดันโลหิตสูงและเบาหวาน) สำหรับประชากรอายุ 35 ปีขึ้นไป (Client-Side, GitHub Pages Ready)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
