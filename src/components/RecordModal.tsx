@@ -433,6 +433,57 @@ export const RecordModal: React.FC<RecordModalProps> = ({ record, onClose, onUpd
 
             </div>
           </div>
+
+          {/* Section: Personal Plan Evaluation */}
+          {record.personalPlan && (
+            <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
+              <h4 className="font-bold text-slate-700 flex items-center gap-2 text-sm uppercase tracking-wider">
+                <ClipboardList className="w-4 h-4 text-emerald-500" />
+                สรุปแผนปรับเปลี่ยนพฤติกรรม (Personal Plan)
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                      <th className="py-2 px-3 w-1/4">หัวข้อ</th>
+                      <th className="py-2 px-3 w-1/2">แผนที่ตั้งไว้</th>
+                      <th className="py-2 px-3 w-1/4 text-center">ผลการทำตามแผนเดิม</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      { key: "sweet", label: "หวาน" },
+                      { key: "fat", label: "มัน" },
+                      { key: "salt", label: "เค็ม" },
+                      { key: "sleep", label: "การนอน" },
+                      { key: "water", label: "การดื่มน้ำ" },
+                    ].map((item) => {
+                      const planData = record.personalPlan?.[item.key as keyof typeof record.personalPlan];
+                      return (
+                        <tr key={item.key}>
+                          <td className="py-2 px-3 font-semibold text-slate-700">{item.label}</td>
+                          <td className="py-2 px-3 text-slate-600">{planData?.plan || "-"}</td>
+                          <td className="py-2 px-3 text-center">
+                            {planData?.achieved === true ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">
+                                <Check className="w-3 h-3" /> ทำได้ (1)
+                              </span>
+                            ) : planData?.achieved === false ? (
+                              <span className="inline-flex items-center gap-1 text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full font-semibold">
+                                <X className="w-3 h-3" /> ทำไม่ได้ (0)
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}

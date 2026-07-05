@@ -2,7 +2,8 @@ import React, { useState, useMemo } from "react";
 import { 
   Search, ArrowRight, Activity, Calendar, MapPin, 
   Heart, User, Phone, Sparkles, TrendingUp, ChevronRight,
-  Info, AlertCircle, Droplet, History
+  Info, AlertCircle, Droplet, History,
+  Target, CheckCircle2, XCircle
 } from "lucide-react";
 import { ScreeningRecord } from "../types";
 import { 
@@ -703,6 +704,90 @@ export const IndividualProfile: React.FC<IndividualProfileProps> = ({
                 })}
               </div>
             </div>
+
+            {/* Personal Plan History */}
+            {patientVisits.some(v => v.personalPlan) && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden mt-6">
+                <div className="bg-indigo-50/50 px-5 py-3 border-b border-indigo-100 flex justify-between items-center">
+                  <span className="text-xs font-bold text-indigo-800 uppercase tracking-wider flex items-center gap-2">
+                    <Target className="w-4 h-4 text-indigo-600" />
+                    ประวัติแผนปรับเปลี่ยนพฤติกรรม (Personal Plan History)
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs min-w-[700px]">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-500 font-bold text-[9px] uppercase tracking-wider">
+                        <th className="py-2.5 px-4">ครั้งที่</th>
+                        <th className="py-2.5 px-4">วันที่</th>
+                        <th className="py-2.5 px-4 text-center">ลดหวาน</th>
+                        <th className="py-2.5 px-4 text-center">ลดมัน</th>
+                        <th className="py-2.5 px-4 text-center">ลดเค็ม</th>
+                        <th className="py-2.5 px-4 text-center">ปรับการนอน</th>
+                        <th className="py-2.5 px-4 text-center">ปรับการดื่มน้ำ</th>
+                        <th className="py-2.5 px-4 text-center text-indigo-700 bg-indigo-50/50">รวมคะแนน</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {patientVisits.map((v) => {
+                        if (!v.personalPlan) return null;
+                        
+                        const totalScore = [
+                          v.personalPlan.sweet?.achieved,
+                          v.personalPlan.fat?.achieved,
+                          v.personalPlan.salt?.achieved,
+                          v.personalPlan.sleep?.achieved,
+                          v.personalPlan.water?.achieved
+                        ].filter(achieved => achieved === true).length;
+                        
+                        return (
+                          <tr key={`plan-${v.id}`} className="hover:bg-slate-50/20 transition-colors">
+                            <td className="py-3 px-4 font-bold text-slate-700">ครั้งที่ {v.visitNumber}</td>
+                            <td className="py-3 px-4 font-semibold text-slate-500">{v.date}</td>
+                            {[
+                              { key: 'sweet', data: v.personalPlan.sweet },
+                              { key: 'fat', data: v.personalPlan.fat },
+                              { key: 'salt', data: v.personalPlan.salt },
+                              { key: 'sleep', data: v.personalPlan.sleep },
+                              { key: 'water', data: v.personalPlan.water }
+                            ].map((item) => (
+                              <td key={item.key} className="py-3 px-4 text-center border-l border-slate-50 relative">
+                                {item.data?.plan ? (
+                                  <div className="flex flex-col items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-600 max-w-[100px] truncate" title={item.data.plan}>
+                                      {item.data.plan}
+                                    </span>
+                                    {item.data.achieved === true ? (
+                                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
+                                        <CheckCircle2 className="w-3 h-3" /> ทำได้ (1)
+                                      </span>
+                                    ) : item.data.achieved === false ? (
+                                      <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100 flex items-center gap-1">
+                                        <XCircle className="w-3 h-3" /> ทำไม่ได้ (0)
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] font-semibold text-slate-400 border border-slate-200 px-2 py-0.5 rounded-full">
+                                        รอประเมินผล
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-300">-</span>
+                                )}
+                              </td>
+                            ))}
+                            <td className="py-3 px-4 text-center border-l border-slate-50 bg-indigo-50/30">
+                              <span className="text-sm font-black text-indigo-600">{totalScore}</span>
+                              <span className="text-[9px] font-bold text-slate-400 block mt-0.5">คะแนน</span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Patient Visit Log Table */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">

@@ -4,7 +4,7 @@ import {
   HelpCircle, Coffee, Flame, AlertTriangle, Droplet, PlusCircle, CheckCircle2 
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import { DistrictType, ScreeningRecord, DISTRICT_TARGET_AREAS, DISTRICT_SUBDISTRICT_MAP, LOCATION_DATA } from "../types";
+import { DistrictType, ScreeningRecord, DISTRICT_TARGET_AREAS, DISTRICT_SUBDISTRICT_MAP, LOCATION_DATA, PersonalPlan } from "../types";
 import { calculateBMI, calculateHTRisk, calculateDMRisk, evaluateFoodHabit } from "../utils";
 import { FOOD_HABIT_QUESTIONS } from "../data/questions";
 
@@ -67,6 +67,15 @@ export const NcdForm: React.FC<NcdFormProps> = ({
   // Follow-up
   const [followUpAction, setFollowUpAction] = useState("ให้คำแนะนำ 3อ. 2ส.");
   const [followUpNote, setFollowUpNote] = useState("");
+
+  // Personal Plan
+  const [personalPlan, setPersonalPlan] = useState<PersonalPlan>({
+    sweet: { plan: "" },
+    fat: { plan: "" },
+    salt: { plan: "" },
+    sleep: { plan: "" },
+    water: { plan: "" },
+  });
 
   // Food Habits scores (mapping of question ID to choice: 0, 1, or 2)
   // Let's pre-populate with healthy answers (0 for positive statements, 2 for negative statements) 
@@ -195,6 +204,19 @@ export const NcdForm: React.FC<NcdFormProps> = ({
       setFollowUpAction(initialRecord.followUpAction || "ให้คำแนะนำ 3อ. 2ส.");
       setFollowUpNote(initialRecord.followUpNote || "");
       
+      // Personal Plan
+      if (initialRecord.personalPlan) {
+        setPersonalPlan(initialRecord.personalPlan);
+      } else {
+        setPersonalPlan({
+          sweet: { plan: "" },
+          fat: { plan: "" },
+          salt: { plan: "" },
+          sleep: { plan: "" },
+          water: { plan: "" },
+        });
+      }
+      
       // Food Habit Answers
       setFoodHabitAnswers(initialRecord.foodHabitAnswers || {});
     } else {
@@ -236,6 +258,13 @@ export const NcdForm: React.FC<NcdFormProps> = ({
       setMuscleMass("");
       setFollowUpAction("ให้คำแนะนำ 3อ. 2ส.");
       setFollowUpNote("");
+      setPersonalPlan({
+        sweet: { plan: "" },
+        fat: { plan: "" },
+        salt: { plan: "" },
+        sleep: { plan: "" },
+        water: { plan: "" },
+      });
       setFoodHabitAnswers({});
     }
   }, [initialRecord, isFollowUp]);
@@ -446,6 +475,7 @@ export const NcdForm: React.FC<NcdFormProps> = ({
         salt: evaluateFoodHabit(saltScore, "salt"),
       },
       foodHabitAnswers,
+      personalPlan,
     };
 
     const payload = (initialRecord && !isFollowUp) ? {
@@ -1225,6 +1255,86 @@ export const NcdForm: React.FC<NcdFormProps> = ({
 
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Section 6: Personal Plan */}
+        <div className="bg-white rounded-2xl shadow-2xs border border-slate-200 overflow-hidden">
+          <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-150">
+            <h3 className="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-2">
+              <ClipboardCheck className="w-4.5 h-4.5 text-blue-600" />
+              ส่วนที่ 6: แผนปรับเปลี่ยนพฤติกรรมรายบุคคล (Personal Plan)
+            </h3>
+            <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase mt-0.5">ระบุแผนและประเมินผลการทำตามแผนของรอบที่ผ่านมา</p>
+          </div>
+          
+          <div className="p-6">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs min-w-[600px]">
+                <thead>
+                  <tr className="bg-slate-50/50 text-slate-500 font-medium border-b border-slate-100">
+                    <th className="py-2 px-4 w-1/5">พฤติกรรม</th>
+                    <th className="py-2 px-4 w-2/5">แผนปรับเปลี่ยนในครั้งนี้</th>
+                    <th className="py-2 px-4 text-center w-2/5">ประเมินผลแผนรอบที่แล้ว</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {[
+                    { key: "sweet", label: "หวาน" },
+                    { key: "fat", label: "มัน" },
+                    { key: "salt", label: "เค็ม" },
+                    { key: "sleep", label: "การนอน" },
+                    { key: "water", label: "การดื่มน้ำ" },
+                  ].map((item) => (
+                    <tr key={item.key} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-slate-700">{item.label}</td>
+                      <td className="py-3.5 px-4">
+                        <input 
+                          type="text"
+                          value={personalPlan[item.key as keyof PersonalPlan].plan}
+                          onChange={(e) => setPersonalPlan(prev => ({
+                            ...prev, 
+                            [item.key]: { ...prev[item.key as keyof PersonalPlan], plan: e.target.value }
+                          }))}
+                          placeholder={`ระบุแผนเรื่อง${item.label}...`}
+                          className="w-full border-b border-slate-300 focus:border-blue-500 outline-none px-2 py-1.5 bg-transparent"
+                        />
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex justify-center gap-5">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name={`plan_${item.key}`}
+                              checked={personalPlan[item.key as keyof PersonalPlan].achieved === true}
+                              onChange={() => setPersonalPlan(prev => ({
+                                ...prev, 
+                                [item.key]: { ...prev[item.key as keyof PersonalPlan], achieved: true }
+                              }))}
+                              className="w-4 h-4 text-emerald-600 border-slate-300 focus:ring-emerald-500"
+                            />
+                            <span className="text-emerald-700 font-medium text-xs">ทำได้ (1)</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name={`plan_${item.key}`}
+                              checked={personalPlan[item.key as keyof PersonalPlan].achieved === false}
+                              onChange={() => setPersonalPlan(prev => ({
+                                ...prev, 
+                                [item.key]: { ...prev[item.key as keyof PersonalPlan], achieved: false }
+                              }))}
+                              className="w-4 h-4 text-rose-600 border-slate-300 focus:ring-rose-500"
+                            />
+                            <span className="text-rose-700 font-medium text-xs">ทำไม่ได้ (0)</span>
+                          </label>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

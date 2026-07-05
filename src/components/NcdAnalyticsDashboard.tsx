@@ -281,6 +281,15 @@ export const NcdAnalyticsDashboard: React.FC<NcdAnalyticsDashboardProps> = ({ re
     let mbTotal = 0, mbNormal = 0, mbRisk = 0, mbDanger = 0;
     let tbTotal = 0, tbNormal = 0, tbRisk = 0, tbDanger = 0;
 
+    // 5. Personal Plan tracking
+    const planTracking = {
+      sweet: { set: 0, achieved: 0 },
+      fat: { set: 0, achieved: 0 },
+      salt: { set: 0, achieved: 0 },
+      sleep: { set: 0, achieved: 0 },
+      water: { set: 0, achieved: 0 },
+    };
+
     filteredRecords.forEach(r => {
       let recordModel = r.modelType || "";
       if (!recordModel && r.district && r.targetArea) {
@@ -302,6 +311,30 @@ export const NcdAnalyticsDashboard: React.FC<NcdAnalyticsDashboardProps> = ({ re
         else if (r.htResult?.level === "risk" || r.dmResult?.level === "risk") tbRisk++;
         else tbNormal++;
       }
+
+      if (r.personalPlan) {
+        Object.keys(planTracking).forEach(key => {
+          const k = key as keyof typeof planTracking;
+          const planData = r.personalPlan?.[k];
+          if (planData && planData.plan) {
+            planTracking[k].set++;
+            if (planData.achieved === true) {
+              planTracking[k].achieved++;
+            }
+          }
+        });
+      }
+    });
+
+    const personalPlanStats = Object.keys(planTracking).map(key => {
+      const k = key as keyof typeof planTracking;
+      return {
+        key: k,
+        label: k === 'sweet' ? 'ลดหวาน' : k === 'fat' ? 'ลดมัน' : k === 'salt' ? 'ลดเค็ม' : k === 'sleep' ? 'ปรับการนอน' : 'ปรับการดื่มน้ำ',
+        set: planTracking[k].set,
+        achieved: planTracking[k].achieved,
+        achievedPct: planTracking[k].set > 0 ? Math.round((planTracking[k].achieved / planTracking[k].set) * 100) : 0
+      };
     });
 
     const modelComparison = {
@@ -368,7 +401,8 @@ export const NcdAnalyticsDashboard: React.FC<NcdAnalyticsDashboardProps> = ({ re
         ratio: unhealthyNormalPct > 0 ? (healthyNormalPct / unhealthyNormalPct).toFixed(1) : "1.0"
       },
       sortedAreas,
-      modelComparison
+      modelComparison,
+      personalPlanStats
     };
   }, [filteredRecords]);
 
@@ -731,7 +765,66 @@ export const NcdAnalyticsDashboard: React.FC<NcdAnalyticsDashboardProps> = ({ re
 
           </div>
 
-          {/* 5. Policy Advice and Dynamic Strategic Recommendations */}
+          {/* 5. Personal Plan Tracking Dashboard */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex items-center gap-1.5">
+                <div className="bg-emerald-50 text-emerald-600 p-1.5 rounded-xl">
+                  <Target className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">สรุปข้อมูลแผนปรับเปลี่ยนพฤติกรรม (Personal Plan Tracking)</h4>
+                  <p className="text-[9px] text-slate-400 font-semibold uppercase">เปรียบเทียบร้อยละความสำเร็จในการตั้งเป้าหมายและทำตามแผนของประชากรในแต่ละด้าน</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {analysis.personalPlanStats.map((plan, idx) => (
+                <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col justify-between h-full hover:bg-slate-100/50 transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-bold text-slate-700">{plan.label}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        plan.achievedPct >= 70 ? 'bg-emerald-100 text-emerald-700' : 
+                        plan.achievedPct >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
+                      }`}>
+                        {plan.achievedPct}%
+                      </span>
+                    </div>
+                    
+                    <div className="relative w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1 mb-3">
+                      <div 
+                        className={`absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ${
+                          plan.achievedPct >= 70 ? 'bg-emerald-500' : 
+                          plan.achievedPct >= 40 ? 'bg-amber-500' : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${plan.achievedPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-end mt-1 pt-2 border-t border-slate-200/60">
+                    <div className="text-center">
+                      <span className="block text-lg font-black text-slate-800 leading-none">{plan.achieved}</span>
+                      <span className="block text-[9px] font-bold text-slate-400 mt-0.5">ทำสำเร็จ</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="block text-lg font-black text-slate-500 leading-none">{plan.set}</span>
+                      <span className="block text-[9px] font-bold text-slate-400 mt-0.5">ตั้งแผนรวม</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {analysis.personalPlanStats.every(p => p.set === 0) && (
+                <div className="col-span-5 text-center py-8 text-slate-400 text-xs font-medium">
+                  ยังไม่มีข้อมูลการตั้งแผนปรับเปลี่ยนพฤติกรรมในพื้นที่ที่เลือก
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 6. Policy Advice and Dynamic Strategic Recommendations */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 rounded-2xl shadow-md space-y-4">
             <div className="flex items-center gap-2">
               <div className="bg-white/10 p-2 rounded-xl">

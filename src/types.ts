@@ -21,6 +21,19 @@ export interface FoodHabitEvaluation {
   salt: FoodHabitCategoryResult;
 }
 
+export interface PlanItem {
+  plan: string;
+  achieved?: boolean; // true = 1 point, false = 0 points
+}
+
+export interface PersonalPlan {
+  sweet: PlanItem;
+  fat: PlanItem;
+  salt: PlanItem;
+  sleep: PlanItem;
+  water: PlanItem;
+}
+
 export interface ScreeningRecord {
   id: number;
   date: string;
@@ -54,6 +67,7 @@ export interface ScreeningRecord {
   dmResult: EvaluationResult;
   foodHabit: FoodHabitEvaluation;
   foodHabitAnswers?: Record<string, number>;
+  personalPlan?: PersonalPlan;
   aiAdvice?: string;
   createdAt?: string;
 }
