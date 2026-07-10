@@ -393,6 +393,7 @@ export default function App() {
             record={selectedRecord}
             onClose={() => setSelectedRecord(null)}
             onUpdateRecord={handleUpdateRecord}
+            onDeleteRecord={handleDeleteRecord}
           />
         )}
       </AnimatePresence>

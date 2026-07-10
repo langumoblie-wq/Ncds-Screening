@@ -5,21 +5,41 @@
   --font-sans: "Prompt", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Global font enhancement for superior legibility and high contrast */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  color: #0f172a; /* Slate 900 for maximum readability */
+  background-color: #f8fafc; /* Slate 50 background */
+}
+
+/* Enhances readability on all text elements across the app */
+p, span, div, h1, h2, h3, h4, h5, h6, li, td, th, label, input, select, textarea, button {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-shadow: 0 0 0.2px rgba(0, 0, 0, 0.05); /* Subtly boldens text lines for extra clarity */
+  letter-spacing: -0.01em; /* Tighter letter-spacing for premium editorial typography feel */
+}
+
 /* Custom styles for clinical status labels */
 .status-normal {
   background-color: #f8fafc;
-  color: #1e293b;
-  border-color: #e2e8f0;
+  color: #0f172a;
+  border-color: #cbd5e1; /* Darker border for higher contrast */
+  font-weight: 600;
 }
 
 .status-risk {
   background-color: #fffbeb;
-  color: #b45309;
-  border-color: #fde68a;
+  color: #92400e; /* Darker amber for higher contrast */
+  border-color: #fcd34d;
+  font-weight: 600;
 }
 
 .status-danger {
   background-color: #fef2f2;
-  color: #b91c1c;
+  color: #991b1b; /* Darker red for higher contrast */
   border-color: #fca5a5;
+  font-weight: 600;
 }

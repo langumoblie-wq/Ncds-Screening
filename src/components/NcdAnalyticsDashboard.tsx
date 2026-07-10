@@ -764,6 +764,21 @@ export const NcdAnalyticsDashboard: React.FC<NcdAnalyticsDashboardProps> = ({ re
               </div>
             )}
 
+            {analysis.bmi.unhealthyBmiCount > 0 && (
+              <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">การแปรผลดัชนีมวลกายภาพรวม (BMI Data Interpretation):</span>
+                <p className="text-xs text-slate-600 leading-relaxed font-semibold">
+                  จากการประเมินดัชนีมวลกาย (BMI) พบว่าประชากรกลุ่มคัดกรองมีสัดส่วนผู้ที่มีภาวะน้ำหนักตัวเกินเกณฑ์มาตรฐานสะสมและเป็นโรคอ้วนระดับต่างๆ รวมทั้งสิ้น <strong className="text-amber-600 font-black">{analysis.bmi.unhealthyBmiCount} ราย ({analysis.bmi.unhealthyBmiPct}%)</strong> 
+                  {analysis.bmi.unhealthyBmiPct >= 50 ? (
+                    <span className="text-rose-600 font-black"> ซึ่งถือเป็นภาวะน้ำหนักเกินในสัดส่วนที่สูงมากในชุมชน (ภาวะความชุกวิกฤตระดับสูง)</span>
+                  ) : (
+                    <span className="text-emerald-600 font-black font-semibold"> ซึ่งอยู่ในระดับที่สามารถเฝ้าระวังและส่งเสริมการป้องกันได้ตามเกณฑ์</span>
+                  )}
+                  {" "}ส่งผลกระทบต่อเนื่องโดยตรงต่อภาวะดื้อต่ออินซูลินและระดับความเหนื่อยล้าของหลอดเลือดหัวใจ คณะทำงานและ อสม. ควรเน้นการส่งเสริมโปรแกรมควบคุมอาหารรสหวาน/มัน และจัดกิจกรรมเดินเร็วสะสมก้าวในชุมชนเพื่อลดดัชนีมวลกายเฉลี่ยให้อยู่ในเกณฑ์ปลอดภัย
+                </p>
+              </div>
+            )}
+
           </div>
 
           {/* 5. Personal Plan Tracking Dashboard */}
@@ -823,6 +838,25 @@ export const NcdAnalyticsDashboard: React.FC<NcdAnalyticsDashboardProps> = ({ re
                 </div>
               )}
             </div>
+
+            {!analysis.personalPlanStats.every(p => p.set === 0) && (
+              <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">การวิเคราะห์พฤติกรรมรายบุคคล (Personal Plan Data Interpretation):</span>
+                <p className="text-xs text-slate-600 leading-relaxed font-semibold">
+                  จากการตั้งแผนปฏิบัติการรายบุคคล พบว่าประเด็นความสำเร็จสูงสุดคือ 
+                  {" "}<strong className="text-emerald-600 font-black">{(() => {
+                    const sorted = [...analysis.personalPlanStats].sort((a, b) => b.achievedPct - a.achievedPct);
+                    return `${sorted[0]?.label} (${sorted[0]?.achievedPct}%)`;
+                  })()}</strong>{" "}
+                  เนื่องจากมีสัดส่วนผู้ที่สามารถปฏิบัติตามเป้าหมายได้ดีที่สุดในพื้นที่ ในทางกลับกัน ประเด็นที่ยังมีสัดส่วนความสำเร็จต่ำสุดและต้องการการช่วยเหลือเพิ่มเติมหรือจัดแคมเปญสนับสนุนคือ
+                  {" "}<strong className="text-rose-600 font-black">{(() => {
+                    const sorted = [...analysis.personalPlanStats].filter(p => p.set > 0).sort((a, b) => a.achievedPct - b.achievedPct);
+                    return sorted.length > 0 ? `${sorted[0]?.label} (${sorted[0]?.achievedPct}%)` : "ยังไม่มีเป้าหมายที่ต่ำกว่าเกณฑ์";
+                  })()}</strong>{" "}
+                  คณะทำงานควรมอบหมายให้ อสม. หรือแกนนำสุขภาพครอบครัวช่วยติดตามกระตุ้นการปฏิบัติอย่างใกล้ชิดเพื่อพัฒนาคุณภาพชีวิตอย่างยั่งยืน
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 6. Policy Advice and Dynamic Strategic Recommendations */}

@@ -10,6 +10,7 @@ interface RecordModalProps {
   record: ScreeningRecord;
   onClose: () => void;
   onUpdateRecord: (updatedRecord: ScreeningRecord) => void;
+  onDeleteRecord?: (id: number) => void;
 }
 
 // Simple Markdown-like Renderer for AI Advice
@@ -77,7 +78,35 @@ const SimpleMarkdown: React.FC<{ content: string }> = ({ content }) => {
   );
 };
 
-export const RecordModal: React.FC<RecordModalProps> = ({ record, onClose, onUpdateRecord }) => {
+export const RecordModal: React.FC<RecordModalProps> = ({ record, onClose, onUpdateRecord, onDeleteRecord }) => {
+
+  const [isGeneratingAdvice, setIsGeneratingAdvice] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const generateAiAdvice = async () => {
+    setIsGeneratingAdvice(true);
+    try {
+      const response = await fetch("/api/generate-advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ record }),
+      });
+      const data = await response.json();
+      if (data.advice) {
+        const updatedRecord = {
+          ...record,
+          aiAdvice: data.advice,
+        };
+        onUpdateRecord(updatedRecord);
+      } else {
+        console.error("No advice returned from server:", data);
+      }
+    } catch (err) {
+      console.error("Error generating AI advice:", err);
+    } finally {
+      setIsGeneratingAdvice(false);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -485,13 +514,97 @@ export const RecordModal: React.FC<RecordModalProps> = ({ record, onClose, onUpd
               </div>
             </div>
           )}
+
+          {/* Section: AI Personalized Advice */}
+          <div className="bg-gradient-to-br from-indigo-50/50 via-blue-50/30 to-white p-5 rounded-xl border border-blue-100 space-y-4 shadow-2xs">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-blue-100 pb-3">
+              <h4 className="font-bold text-slate-800 flex items-center gap-2 text-sm uppercase tracking-wider">
+                <Brain className="w-5 h-5 text-blue-600" />
+                <span>คำแนะนำสุขภาพเฉพาะบุคคลโดย AI (Gemini 3.1 Flash)</span>
+              </h4>
+              {record.aiAdvice && !isGeneratingAdvice && (
+                <button
+                  onClick={generateAiAdvice}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span>วิเคราะห์ใหม่</span>
+                </button>
+              )}
+            </div>
+
+            {isGeneratingAdvice ? (
+              <div className="py-12 text-center space-y-4">
+                <div className="relative w-16 h-16 mx-auto">
+                  <div className="absolute inset-0 rounded-full border-4 border-blue-100 animate-pulse" />
+                  <div className="absolute inset-0 rounded-full border-4 border-t-blue-600 animate-spin" />
+                  <Brain className="w-8 h-8 text-blue-600 absolute inset-0 m-auto animate-bounce" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">กำลังประมวลผลวิเคราะห์ด้วย Gemini 3.1 Flash...</p>
+                  <p className="text-xs text-slate-400 mt-1">ระบบกำลังตรวจสอบประวัติสุขภาพ ผลความดัน ระดับน้ำตาล และพฤติกรรมการกิน</p>
+                </div>
+              </div>
+            ) : record.aiAdvice ? (
+              <div className="bg-white p-5 rounded-xl border border-blue-100 shadow-2xs">
+                <SimpleMarkdown content={record.aiAdvice} />
+              </div>
+            ) : (
+              <div className="py-8 text-center bg-white rounded-xl border border-dashed border-blue-200">
+                <Sparkles className="w-10 h-10 text-blue-500 mx-auto mb-3 animate-pulse" />
+                <h5 className="text-sm font-semibold text-slate-800 mb-1">ผลตรวจยังไม่ได้รับการวิเคราะห์ด้วย AI</h5>
+                <p className="text-xs text-slate-500 mb-4 max-w-md mx-auto px-4">
+                  ช่วยให้ผู้รับการตรวจได้ปฏิบัติตัวอย่างถูกต้องตามหลักวิชาการ ด้วยการใช้ AI วิเคราะห์ประวัติและพฤติกรรม Sweet, Fat, Salt เฉพาะบุคคล
+                </p>
+                <button
+                  onClick={generateAiAdvice}
+                  className="bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-semibold py-2 px-5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 mx-auto shadow-sm cursor-pointer"
+                >
+                  <Brain className="w-4 h-4 animate-bounce" />
+                  วิเคราะห์ด้วย Gemini 3.1 Flash
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3 print:hidden">
+        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-between items-center print:hidden">
+          {onDeleteRecord && (
+            <div className="flex items-center gap-2">
+              {showDeleteConfirm ? (
+                <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 p-1.5 px-3 rounded-xl animate-in fade-in slide-in-from-left-2 duration-150">
+                  <span className="text-xs text-rose-700 font-semibold">ยืนยันการลบ?</span>
+                  <button
+                    onClick={() => {
+                      onDeleteRecord(record.id);
+                      onClose();
+                    }}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] py-1 px-3 rounded-lg transition-colors cursor-pointer"
+                  >
+                    ลบเลย
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-[11px] py-1 px-2.5 rounded-lg transition-colors cursor-pointer"
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  ลบรายงานนี้
+                </button>
+              )}
+            </div>
+          )}
           <button 
             onClick={onClose}
-            className="px-5 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl hover:bg-slate-100 transition-colors"
+            className="px-5 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl hover:bg-slate-100 transition-colors ml-auto"
           >
             ปิดหน้าต่าง
           </button>

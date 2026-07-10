@@ -3,7 +3,7 @@ import {
   Users, CheckCircle2, AlertTriangle, ShieldAlert, Search, Filter, 
   MapPin, Eye, Trash2, SlidersHorizontal, ArrowUpDown, ChevronDown, 
   Download, FileSpreadsheet, RotateCcw, Cigarette, Wine, Flame, EyeOff,
-  Pencil, PlusCircle, History, Apple, Dumbbell, Smile, Moon
+  Pencil, PlusCircle, History, Apple, Dumbbell, Smile, Moon, Activity
 } from "lucide-react";
 import { ScreeningRecord, DistrictType, LOCATION_DATA } from "../types";
 
@@ -602,6 +602,58 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
     };
   }, [filteredRecords]);
 
+  const interpretation = useMemo(() => {
+    if (stats.total === 0) return null;
+
+    const total = stats.total;
+    const normalPct = Math.round((stats.normal / total) * 100);
+    const riskPct = Math.round((stats.risk / total) * 100);
+    const dangerPct = Math.round((stats.danger / total) * 100);
+    const totalUnhealthyPct = riskPct + dangerPct;
+
+    const htRiskDanger = stats.ht.risk + stats.ht.danger;
+    const dmRiskDanger = stats.dm.risk + stats.dm.danger;
+    const htRiskDangerPct = Math.round((htRiskDanger / total) * 100);
+    const dmRiskDangerPct = Math.round((dmRiskDanger / total) * 100);
+
+    let mainIssue = "โรคความดันโลหิตสูง (HT)";
+    let mainIssuePct = htRiskDangerPct;
+    if (dmRiskDangerPct > htRiskDangerPct) {
+      mainIssue = "โรคเบาหวาน (DM)";
+      mainIssuePct = dmRiskDangerPct;
+    } else if (dmRiskDangerPct === htRiskDangerPct && htRiskDangerPct > 0) {
+      mainIssue = "โรคความดันโลหิตสูง (HT) และโรคเบาหวาน (DM)";
+    }
+
+    const behaviors = [
+      { name: "การรับประทานรสหวานจัด (อ.อาหาร)", count: stats.lifestyle.foodSweetCount, pct: Math.round((stats.lifestyle.foodSweetCount / total) * 100) },
+      { name: "การรับประทานอาหารทอด/ไขมันสูง (อ.อาหาร)", count: stats.lifestyle.foodFatCount, pct: Math.round((stats.lifestyle.foodFatCount / total) * 100) },
+      { name: "การรับประทานเค็มจัด/ปรุงรสเค็ม (อ.อาหาร)", count: stats.lifestyle.foodSaltCount, pct: Math.round((stats.lifestyle.foodSaltCount / total) * 150) }, // fallback multiplier check or raw pct
+      { name: "การขาดการออกกำลังกาย (อ.ออกกำลังกาย)", count: stats.lifestyle.noExerciseCount, pct: Math.round((stats.lifestyle.noExerciseCount / total) * 100) },
+      { name: "การนอนหลับพักผ่อนไม่เพียงพอ (อ.อารมณ์)", count: stats.lifestyle.poorSleepCount, pct: Math.round((stats.lifestyle.poorSleepCount / total) * 100) },
+      { name: "การสูบบุหรี่ประจำ (ส.สูบ)", count: stats.lifestyle.smokeCount, pct: Math.round((stats.lifestyle.smokeCount / total) * 100) },
+      { name: "การดื่มเครื่องดื่มแอลกอฮอล์ (ส.สุรา)", count: stats.lifestyle.alcoholCount, pct: Math.round((stats.lifestyle.alcoholCount / total) * 100) },
+    ];
+    
+    // Fix percentages for salt
+    behaviors[2].pct = Math.round((stats.lifestyle.foodSaltCount / total) * 100);
+
+    const sortedBehaviors = [...behaviors].sort((a, b) => b.count - a.count);
+    const topBehavior = sortedBehaviors[0];
+
+    return {
+      total,
+      normalPct,
+      riskPct,
+      dangerPct,
+      totalUnhealthyPct,
+      mainIssue,
+      mainIssuePct,
+      topBehavior,
+      allBehaviors: behaviors
+    };
+  }, [stats]);
+
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
       setSortOrder(prev => prev === "asc" ? "desc" : "asc");
@@ -827,6 +879,233 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
         />
 
       </div>
+
+      {/* 4. Health Analysis & Interpretation Panel */}
+      {interpretation && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-gradient-to-tr from-indigo-500 to-blue-600 text-white p-2.5 rounded-xl shrink-0 shadow-sm">
+                <Activity className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                  แผงแปรผลและวิเคราะห์แนวทางการจัดการความเสี่ยง (Health Data Interpretation Panel)
+                </h3>
+                <p className="text-[10px] text-slate-500 font-semibold uppercase">
+                  วิเคราะห์ผลสถิติจำนวนประชากรและกลุ่มเสี่ยงตามเกณฑ์กระทรวงสาธารณสุข และแนวทางปฏิบัติเฉพาะรายกลุ่ม
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold px-3 py-1.5 rounded-xl uppercase tracking-wider shrink-0">
+              สถานะภาพรวมชุมชน: {interpretation.normalPct >= 70 ? "🟢 สุขภาพชุมชนดีเยี่ยม" : interpretation.normalPct >= 40 ? "🟡 ระดับเฝ้าระวังปานกลาง" : "🔴 มีภาวะเสี่ยงสูงในพื้นที่"}
+            </span>
+          </div>
+
+          {/* Core Insights Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Health summary text */}
+            <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-200/60 space-y-3.5">
+              <div className="flex items-center gap-1.5 text-slate-800 font-bold text-xs">
+                <span className="bg-slate-200 text-slate-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black font-mono">A</span>
+                <span>สรุปการแปรผลลัพธ์เชิงสถิติ (Statistical Conclusions)</span>
+              </div>
+              <div className="text-xs text-slate-600 leading-relaxed font-semibold space-y-3">
+                <p>
+                  จากการประมวลผลข้อมูลผู้เข้ารับการคัดกรองโรคไม่ติดต่อเรื้อรัง (NCDs) สะสมจำนวน <strong className="text-slate-800 text-sm font-black font-mono">{interpretation.total}</strong> ราย 
+                  ผลการคัดกรองจำแนกตามความรุนแรงหลักมีสัดส่วนกลุ่มปกติร้อยละ <strong className="text-emerald-600 text-sm font-black font-mono">{interpretation.normalPct}%</strong> ({stats.normal} ราย), 
+                  กลุ่มเสี่ยงสูงร้อยละ <strong className="text-amber-500 text-sm font-black font-mono">{interpretation.riskPct}%</strong> ({stats.risk} ราย) 
+                  และกลุ่มสงสัยป่วยรายใหม่ที่ต้องส่งต่อรักษาต่อร้อยละ <strong className="text-rose-600 text-sm font-black font-mono">{interpretation.dangerPct}%</strong> ({stats.danger} ราย)
+                </p>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
+                  <p className="text-[11px] text-slate-500 font-semibold">
+                    อัตราความชุกรวมของกลุ่มเสี่ยงสูงและสงสัยป่วยรวมกันคิดเป็น <strong className="text-indigo-600 text-sm font-black font-mono">{interpretation.totalUnhealthyPct}%</strong> ของประชากรที่ประเมินทั้งหมด
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Strategic Warnings */}
+            <div className="bg-gradient-to-br from-amber-50/50 to-orange-50/50 p-4 rounded-xl border border-amber-200/60 flex flex-col justify-between">
+              <div className="space-y-3.5">
+                <div className="flex items-center gap-1.5 text-amber-850 font-bold text-xs">
+                  <span className="bg-amber-100 text-amber-700 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black font-mono">B</span>
+                  <span>ประเด็นเฝ้าระวังและปัจจัยกระตุ้นหลัก (Key Concern & Stressors)</span>
+                </div>
+                
+                <div className="space-y-2.5 text-xs text-slate-600 leading-relaxed font-semibold">
+                  {interpretation.mainIssuePct > 0 ? (
+                    <div className="flex items-start gap-2">
+                      <ShieldAlert className="w-4.5 h-4.5 text-rose-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span><strong>โรคอุบัติการณ์สูงที่สุด:</strong> คือ <strong className="text-rose-700">{interpretation.mainIssue}</strong> โดยมีอัตราความเสี่ยงสะสม (เสี่ยงสูง + สงสัยป่วย) อยู่ที่ <strong className="text-rose-700 text-sm font-black font-mono">{interpretation.mainIssuePct}%</strong> ของจำนวนผู้คัดกรองทั้งหมด</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span><strong>โรคอุบัติการณ์สูงที่สุด:</strong> ยังไม่พบภาวะความดันโลหิตหรือเบาหวานที่ผิดปกติในกลุ่มประชากรที่คัดกรอง</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {interpretation.topBehavior && interpretation.topBehavior.count > 0 ? (
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4.5 h-4.5 text-orange-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span><strong>พฤติกรรมเสี่ยงหลัก:</strong> พฤติกรรมเสี่ยงสูงที่สุดที่ตรวจพบคู่ขนาน คือ <strong className="text-orange-700">{interpretation.topBehavior.name}</strong> พบสูงถึง <strong className="text-orange-700 text-sm font-black font-mono">{interpretation.topBehavior.pct}%</strong> ของประชากรทั้งหมด มีความเสี่ยงในการกระตุ้นการตีบตันของหลอดเลือด</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span><strong>พฤติกรรมเสี่ยงหลัก:</strong> ประชากรในกลุ่มตรวจไม่มีพฤติกรรมความเสี่ยงวิกฤตด้านอาหารหรือการนอน</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {interpretation.topBehavior && interpretation.topBehavior.count > 0 && (
+                <div className="mt-3 text-[10px] bg-white border border-amber-200 text-amber-850 p-2.5 rounded-xl font-bold flex items-center gap-1.5 leading-tight">
+                  <span className="shrink-0 bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black font-mono">คำแนะนำเชิงพื้นที่</span>
+                  <span>เน้นจัดโครงการควบคุมพฤติกรรม "{interpretation.topBehavior.name.split(" (")[0]}" เป็นมาตรการระดับพื้นที่เร่งด่วนอันดับหนึ่ง</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Color coding guidelines / translation */}
+          <div className="space-y-3.5 pt-1">
+            <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+              <span>🩺 คู่มือเกณฑ์แปรผลทางคลินิกและการดูแลรักษารายกลุ่ม (Clinical Translation & Intervention Protocols)</span>
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* Green Group (Normal) */}
+              <div className="bg-emerald-50/20 border border-emerald-100 p-4.5 rounded-xl flex flex-col justify-between hover:shadow-xs transition-shadow">
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-emerald-100/60 pb-2">
+                    <span className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs">
+                      <span className="w-3 h-3 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                      กลุ่มปกติ (ขาว/เขียว)
+                    </span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black font-mono">
+                      {interpretation.normalPct}%
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-600 block uppercase">เกณฑ์ผลตรวจทางการแพทย์</span>
+                      <p className="text-slate-700 font-semibold leading-normal">
+                        ความดันโลหิต &lt; 120/80 mmHg และระดับน้ำตาลปลายนิ้วหลังอดอาหาร &lt; 100 mg/dL
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-emerald-600 block uppercase">การแปรผลตรวจ</span>
+                      <p className="text-slate-500 leading-normal font-semibold">
+                        ระดับความดันและน้ำตาลอยู่ในเกณฑ์มาตรฐานดี ไม่พบสัญญาณเสี่ยงต่อการเกิดโรคไม่ติดต่อเรื้อรัง (NCDs)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-3.5 border-t border-emerald-100/60 space-y-1.5">
+                  <span className="text-[10px] font-bold text-emerald-700 block">แนวทางปฏิบัติ (Action Plan):</span>
+                  <ul className="text-[10px] text-slate-500 space-y-1.5 list-disc pl-4 leading-normal font-bold">
+                    <li>ป้องกันการเกิดโรคต่อเนื่องด้วยการปฏิบัติตามหลัก 3อ. 2ส. อย่างสม่ำเสมอ</li>
+                    <li>นัดหมายตรวจคัดกรองสุขภาพและประเมินซ้ำอย่างน้อยปีละ 1 ครั้ง</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Yellow Group (High Risk) */}
+              <div className="bg-amber-50/20 border border-amber-200/60 p-4.5 rounded-xl flex flex-col justify-between hover:shadow-xs transition-shadow">
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-amber-200/40 pb-2">
+                    <span className="flex items-center gap-1.5 text-amber-850 font-bold text-xs">
+                      <span className="w-3 h-3 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+                      กลุ่มเสี่ยงสูง (สีเหลือง)
+                    </span>
+                    <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black font-mono">
+                      {interpretation.riskPct}%
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-700 block uppercase">เกณฑ์ผลตรวจทางการแพทย์</span>
+                      <p className="text-slate-700 font-semibold leading-normal">
+                        ความดันโลหิต 120-139 / 80-89 mmHg หรือระดับน้ำตาลปลายนิ้วช่วงอดอาหาร 100-125 mg/dL
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-700 block uppercase">การแปรผลตรวจ</span>
+                      <p className="text-slate-500 leading-normal font-semibold">
+                        ร่างกายเริ่มเสื่อมสภาพ มีระดับความเสี่ยงสูงขึ้น หากไม่รีบปรับพฤติกรรมมีโอกาสดำเนินโรคเป็นเบาหวาน/ความดันจริง
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-3.5 border-t border-amber-200/40 space-y-1.5">
+                  <span className="text-[10px] font-bold text-amber-800 block">แนวทางปฏิบัติ (Action Plan):</span>
+                  <ul className="text-[10px] text-slate-600 space-y-1.5 list-disc pl-4 leading-normal font-bold">
+                    <li>ลดเค็มอย่างเด็ดขาด เลี่ยงอาหารแปรรูป ผงชูรส และการเติมเครื่องปรุงมื้ออาหาร</li>
+                    <li>ออกกำลังกายสม่ำเสมอเพื่อเผาผลาญระดับน้ำตาลและเสริมความยืดหยุ่นหลอดเลือด</li>
+                    <li>แนะนำเยี่ยมติดตามบันทึกอาการที่บ้าน นัดตรวจและประเมินซ้ำทุก 1-3 เดือน</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Red Group (Danger/Suspected) */}
+              <div className="bg-rose-50/10 border border-rose-200/80 p-4.5 rounded-xl flex flex-col justify-between hover:shadow-xs transition-shadow">
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-rose-200/40 pb-2">
+                    <span className="flex items-center gap-1.5 text-rose-800 font-bold text-xs">
+                      <span className="w-3 h-3 rounded-full bg-rose-500 shrink-0 animate-pulse" />
+                      กลุ่มสงสัยรายใหม่ (สีแดง)
+                    </span>
+                    <span className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-black font-mono">
+                      {interpretation.dangerPct}%
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2.5 text-xs">
+                    <div>
+                      <span className="text-[10px] font-bold text-rose-700 block uppercase">เกณฑ์ผลตรวจทางการแพทย์</span>
+                      <p className="text-slate-700 font-semibold leading-normal">
+                        ความดันโลหิต &ge; 140/90 mmHg หรือระดับน้ำตาลปลายนิ้วช่วงอดอาหาร &ge; 126 mg/dL
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-rose-700 block uppercase">การแปรผลตรวจ</span>
+                      <p className="text-slate-500 leading-normal font-semibold">
+                        พบสัญญาณผิดปกติเด่นชัดระดับวิกฤต เข้าข่ายผู้สงสัยป่วยโรคความดันโลหิตสูงหรือเบาหวานรายใหม่
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-3.5 border-t border-rose-200/40 space-y-1.5">
+                  <span className="text-[10px] font-bold text-rose-850 block">แนวทางปฏิบัติ (Action Plan):</span>
+                  <ul className="text-[10px] text-slate-600 space-y-1.5 list-disc pl-4 leading-normal font-bold">
+                    <li className="text-rose-700 font-extrabold">ส่งต่อเข้ารับการตรวจวินิจฉัยและเจาะเลือดทางห้องปฏิบัติการ (Lab) ยืนยันที่ รพ.สต./รพ.ด่วน</li>
+                    <li>ลงทะเบียนเข้ารับการรักษาดูแล ควบคุมระดับน้ำตาล/ความดันเพื่อป้องกันสภาวะแทรกซ้อน</li>
+                    <li>ให้อสม. ลงเยี่ยมติดตาม แนะนำพฤติกรรม และตรวจสัญญาณชีพสม่ำเสมอทุกสัปดาห์</li>
+                  </ul>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters and Search Bar Card */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
