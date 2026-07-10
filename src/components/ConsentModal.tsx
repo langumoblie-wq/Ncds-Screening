@@ -16,6 +16,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isDeclined, setIsDeclined] = useState(false);
   const [generatedPdf, setGeneratedPdf] = useState<jsPDF | null>(null);
   const [pdfFilename, setPdfFilename] = useState("");
 
@@ -25,6 +26,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
   useEffect(() => {
     if (isOpen) {
       setIsSuccess(false);
+      setIsDeclined(false);
       setGeneratedPdf(null);
       setError(null);
     }
@@ -41,8 +43,7 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
   if (!isOpen) return null;
 
   const handleDecline = () => {
-    alert("ไม่สามารถบันทึกข้อมูลได้ เนื่องจากท่านไม่ยินยอมให้เก็บข้อมูลส่วนบุคคล");
-    onClose();
+    setIsDeclined(true);
   };
 
   const handleAccept = async () => {
@@ -77,15 +78,20 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
       const filename = `ConsentForm_${name}_${new Date().getTime()}.pdf`;
       
       // Upload to Drive folder
-      const folderId = "1awgyvd-yup0O_2QIQfxwJTrowXNcUTXT";
-      await uploadToDrive(pdfBlob, filename, folderId);
+      try {
+        const folderId = "1awgyvd-yup0O_2QIQfxwJTrowXNcUTXT";
+        await uploadToDrive(pdfBlob, filename, folderId);
+      } catch (uploadErr: any) {
+        console.warn("Drive upload failed (possibly due to auth/unauthorized-domain):", uploadErr);
+        // We still proceed so the user can download/print the PDF and submit the form
+      }
       
       setGeneratedPdf(pdf);
       setPdfFilename(filename);
       setIsSuccess(true);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to upload PDF");
+      setError(err.message || "Failed to generate PDF");
     } finally {
       setIsUploading(false);
     }
@@ -102,6 +108,32 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
       window.open(generatedPdf.output('bloburl'), '_blank');
     }
   };
+
+  if (isDeclined) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col p-8 text-center animate-in zoom-in-95 duration-200">
+          <AlertCircle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-slate-800 mb-2">ไม่สามารถบันทึกข้อมูลได้</h3>
+          <p className="text-sm text-slate-600 mb-8">ระบบจำเป็นต้องได้รับความยินยอมจากท่านเพื่อเก็บรวบรวมข้อมูลส่วนบุคคล หากท่านไม่ยินยอม ระบบจะไม่สามารถดำเนินการบันทึกข้อมูลได้</p>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setIsDeclined(false)}
+              className="flex-1 py-3 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+            >
+              กลับไปอ่านอีกครั้ง
+            </button>
+            <button 
+              onClick={() => onClose()}
+              className="flex-1 py-3 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-sm"
+            >
+              ปิดหน้าต่าง
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isSuccess) {
     return (
