@@ -25,7 +25,31 @@ export const RecordModal: React.FC<RecordModalProps> = ({ record, onClose, onUpd
   const getThaiDate = (dateString?: string) => {
     if (!dateString) return new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
     try {
-      return new Date(dateString).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+      // Handle common th-TH output like "11/7/2569" (DD/MM/YYYY)
+      if (dateString.includes('/')) {
+        const parts = dateString.split('/');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          let year = parseInt(parts[2], 10);
+          // If year is BE (e.g. 2569), convert to AD for Date parsing
+          if (year > 2500) year -= 543;
+          
+          const parsedDate = new Date(year, month, day);
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+          }
+        }
+      }
+
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      
+      // If parsed year is still > 2500, it means the Date constructor parsed it as BE.
+      if (d.getFullYear() > 2500) {
+        d.setFullYear(d.getFullYear() - 543);
+      }
+      return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
     } catch (e) {
       return dateString;
     }
@@ -149,6 +173,10 @@ export const RecordModal: React.FC<RecordModalProps> = ({ record, onClose, onUpd
                 ข้อมูลผู้รับการตรวจ
               </h4>
               <div className="space-y-2.5 text-sm">
+                <div>
+                  <span className="text-slate-500 block text-xs">วันที่คัดกรอง</span>
+                  <span className="font-semibold text-slate-800">{recordDate}</span>
+                </div>
                 <div>
                   <span className="text-slate-500 block text-xs">ชื่อ-นามสกุล</span>
                   <span className="font-semibold text-slate-800">{record.name}</span>
