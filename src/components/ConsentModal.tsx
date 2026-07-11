@@ -1,8 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { uploadToDrive, initAuth } from '../lib/driveUpload';
-import { Loader2, AlertCircle, FileCheck, X, CheckCircle2, Download, Printer, Cloud } from 'lucide-react';
+import { Loader2, AlertCircle, FileCheck, X, CheckCircle2, Download, Printer } from 'lucide-react';
 
 interface ConsentModalProps {
   isOpen: boolean;
@@ -13,14 +12,11 @@ interface ConsentModalProps {
 
 export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onAccept, name }) => {
   const [isUploading, setIsUploading] = useState(false);
-  const [isUploadingDrive, setIsUploadingDrive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isDeclined, setIsDeclined] = useState(false);
   const [generatedPdf, setGeneratedPdf] = useState<jsPDF | null>(null);
   const [pdfFilename, setPdfFilename] = useState("");
-  const [driveUploadSuccess, setDriveUploadSuccess] = useState<boolean | null>(null);
 
   const pdfRef = useRef<HTMLDivElement>(null);
   const currentDate = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -31,17 +27,8 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
       setIsDeclined(false);
       setGeneratedPdf(null);
       setError(null);
-      setDriveUploadSuccess(null);
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    const unsubscribe = initAuth(
-      () => setIsAuthenticated(true),
-      () => setIsAuthenticated(false)
-    );
-    return () => unsubscribe();
-  }, []);
 
   if (!isOpen) return null;
 
@@ -78,43 +65,14 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
       
       const filename = `ConsentForm_${name}_${new Date().getTime()}.pdf`;
       
-      // We do not auto-upload here anymore to avoid blocking the user flow with popup blockings
       setGeneratedPdf(pdf);
       setPdfFilename(filename);
-      setDriveUploadSuccess(null); // Reset Drive upload status
       setIsSuccess(true);
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to generate PDF");
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const handleUploadToDriveManual = async () => {
-    if (!generatedPdf) return;
-    
-    try {
-      setIsUploadingDrive(true);
-      const pdfBlob = generatedPdf.output('blob');
-      const folderId = "1awgyvd-yup0O_2QIQfxwJTrowXNcUTXT";
-      
-      try {
-        await uploadToDrive(pdfBlob, pdfFilename, folderId);
-        setDriveUploadSuccess(true);
-        console.log("PDF successfully uploaded to the specific shared Google Drive folder.");
-      } catch (folderErr) {
-        console.warn("Upload to specific shared folder failed, trying root of user's Google Drive...", folderErr);
-        // Fallback: upload directly to root of user's own Google Drive
-        await uploadToDrive(pdfBlob, pdfFilename);
-        setDriveUploadSuccess(true);
-        console.log("PDF successfully uploaded to user's root Google Drive folder.");
-      }
-    } catch (uploadErr: any) {
-      console.error("Drive upload failed completely:", uploadErr);
-      setDriveUploadSuccess(false);
-    } finally {
-      setIsUploadingDrive(false);
     }
   };
 
@@ -184,58 +142,6 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
               </button>
             </div>
             
-            {/* Optional Google Drive Storage Section */}
-            <div className="mt-4 border-t border-slate-100 pt-4 text-left">
-              <h4 className="text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                <Cloud className="w-4 h-4 text-blue-500" />
-                ส่งสำเนาไปยัง Google Drive (ทางเลือกเสริม)
-              </h4>
-              <p className="text-[11px] text-slate-500 mb-2.5">
-                สำหรับผู้พัฒนาหรือผู้เข้าร่วมโครงการที่ต้องการบันทึกเก็บไว้ใน Google Drive ส่วนตัวของคุณ
-              </p>
-              
-              {driveUploadSuccess === true ? (
-                <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 text-xs rounded-xl p-3 flex items-center gap-2 font-medium">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>บันทึกไปยัง Google Drive สำเร็จแล้ว!</span>
-                </div>
-              ) : driveUploadSuccess === false ? (
-                <div className="space-y-2">
-                  <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-left space-y-1">
-                    <p className="text-[11px] text-amber-800 leading-relaxed font-semibold">
-                      ⚠️ บันทึกไปยัง Google Drive ไม่สำเร็จชั่วคราว:
-                    </p>
-                    <p className="text-[10px] text-slate-500 leading-relaxed">
-                      เนื่องจากระบบอยู่ใน Testing Mode บัญชีทั่วไปจะถูก Google บล็อกจนกว่าคุณจะเพิ่มบัญชีใน Test Users บนหน้า OAuth Consent Screen ใน GCP Console
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleUploadToDriveManual}
-                    disabled={isUploadingDrive}
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 border border-slate-200 cursor-pointer disabled:opacity-50"
-                  >
-                    {isUploadingDrive ? (
-                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> กำลังอัปโหลด...</>
-                    ) : (
-                      'ลองใหม่อีกครั้ง'
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleUploadToDriveManual}
-                  disabled={isUploadingDrive}
-                  className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded-lg text-xs transition-colors flex items-center justify-center gap-2 border border-blue-200 cursor-pointer disabled:opacity-50"
-                >
-                  {isUploadingDrive ? (
-                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> กำลังอัปโหลด...</>
-                  ) : (
-                    'อัปโหลดไปยัง Google Drive'
-                  )}
-                </button>
-              )}
-            </div>
-
             <button 
               onClick={() => onAccept()}
               className="mt-4 w-full py-3.5 font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all shadow-md active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
