@@ -392,6 +392,15 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
   const [sortBy, setSortBy] = useState<"date" | "name" | "age" | "bmi">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  // Password Modal state for Export/Import
+  const [passwordModalConfig, setPasswordModalConfig] = useState<{
+    isOpen: boolean;
+    action: 'export' | 'import' | null;
+  }>({ isOpen: false, action: null });
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Cascading dropdown updates for filters
   useEffect(() => {
     setFilterDistrict("");
@@ -700,13 +709,7 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
     document.body.removeChild(link);
   };
 
-  const handleExportBackup = () => {
-    const password = window.prompt("กรุณาใส่รหัสผ่านเพื่อดำเนินการสำรองข้อมูล:");
-    if (password !== "0849999394") {
-      alert("รหัสผ่านไม่ถูกต้อง");
-      return;
-    }
-
+  const executeExportBackup = () => {
     if (records.length === 0) {
       alert("ไม่มีข้อมูลสำหรับสำรองข้อมูล");
       return;
@@ -719,6 +722,32 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
     link.download = `ncd_backup_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 100);
+  };
+
+  const openPasswordModal = (action: 'export' | 'import') => {
+    setPasswordModalConfig({ isOpen: true, action });
+    setPasswordInput("");
+    setPasswordError("");
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === "0849999394") {
+      setPasswordError("");
+      const action = passwordModalConfig.action;
+      setPasswordModalConfig({ isOpen: false, action: null });
+      setPasswordInput("");
+      
+      if (action === 'export') {
+        executeExportBackup();
+      } else if (action === 'import') {
+        if (fileInputRef.current) {
+          fileInputRef.current.click();
+        }
+      }
+    } else {
+      setPasswordError("รหัสผ่านไม่ถูกต้อง");
+    }
   };
 
   const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1199,7 +1228,7 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
 
             {/* Action: Backup JSON */}
             <button
-              onClick={handleExportBackup}
+              onClick={() => openPasswordModal('export')}
               disabled={records.length === 0}
               className="bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-3 px-3.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0 transition-all"
             >
@@ -1208,23 +1237,20 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
             </button>
 
             {/* Action: Restore JSON */}
-            <label className="bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 font-bold text-xs py-3 px-3.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-all">
+            <button 
+              onClick={() => openPasswordModal('import')}
+              className="bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 font-bold text-xs py-3 px-3.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shrink-0 transition-all"
+            >
               <Upload className="w-4 h-4" />
               นำเข้าข้อมูล
-              <input 
-                type="file" 
-                accept=".json" 
-                onClick={(e) => {
-                  const pwd = window.prompt("กรุณาใส่รหัสผ่านเพื่อนำเข้าข้อมูล:");
-                  if (pwd !== "0849999394") {
-                    e.preventDefault();
-                    alert("รหัสผ่านไม่ถูกต้อง");
-                  }
-                }}
-                onChange={handleImportBackup} 
-                className="hidden" 
-              />
-            </label>
+            </button>
+            <input 
+              ref={fileInputRef}
+              type="file" 
+              accept=".json" 
+              onChange={handleImportBackup} 
+              className="hidden" 
+            />
 
             {/* Action: Export CSV */}
             <button
@@ -1448,6 +1474,64 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
               >
                 ยืนยันการลบ
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Modal */}
+      {passwordModalConfig.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex justify-center mb-4">
+                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 text-center mb-2">
+                ยืนยันสิทธิ์การเข้าถึง
+              </h3>
+              <p className="text-sm text-slate-500 text-center mb-6">
+                กรุณาใส่รหัสผ่านเพื่อดำเนินการ{passwordModalConfig.action === 'export' ? 'สำรองข้อมูล' : 'นำเข้าข้อมูล'}
+              </p>
+              
+              <form onSubmit={handlePasswordSubmit}>
+                <div className="space-y-4">
+                  <div>
+                    <input
+                      type="password"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 text-center text-lg tracking-widest focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-mono"
+                      placeholder="••••••••"
+                      autoFocus
+                    />
+                    {passwordError && (
+                      <p className="text-rose-500 text-xs font-semibold text-center mt-2 flex items-center justify-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        {passwordError}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-3 pt-2">
+                    <button 
+                      type="button"
+                      onClick={() => setPasswordModalConfig({ isOpen: false, action: null })}
+                      className="flex-1 py-2.5 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button 
+                      type="submit"
+                      className="flex-1 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      ยืนยัน
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         </div>
