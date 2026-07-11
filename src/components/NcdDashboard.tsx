@@ -701,6 +701,12 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
   };
 
   const handleExportBackup = () => {
+    const password = window.prompt("กรุณาใส่รหัสผ่านเพื่อดำเนินการสำรองข้อมูล:");
+    if (password !== "0849999394") {
+      alert("รหัสผ่านไม่ถูกต้อง");
+      return;
+    }
+
     if (records.length === 0) {
       alert("ไม่มีข้อมูลสำหรับสำรองข้อมูล");
       return;
@@ -1208,6 +1214,13 @@ export const NcdDashboard: React.FC<NcdDashboardProps> = ({
               <input 
                 type="file" 
                 accept=".json" 
+                onClick={(e) => {
+                  const pwd = window.prompt("กรุณาใส่รหัสผ่านเพื่อนำเข้าข้อมูล:");
+                  if (pwd !== "0849999394") {
+                    e.preventDefault();
+                    alert("รหัสผ่านไม่ถูกต้อง");
+                  }
+                }}
                 onChange={handleImportBackup} 
                 className="hidden" 
               />
