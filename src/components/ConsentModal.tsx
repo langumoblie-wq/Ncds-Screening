@@ -170,14 +170,21 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ isOpen, onClose, onA
                 </div>
               </div>
               <h3 className="text-xl font-bold text-slate-800 mb-2">ให้ความยินยอมสำเร็จ</h3>
-              <div className="bg-amber-50 border border-amber-100 p-3.5 rounded-xl mb-6 text-left">
-                <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                  ⚠️ <strong>ไม่สามารถบันทึกไปยัง Google Drive ได้:</strong> 
-                  <br />
-                  เนื่องจากข้อจำกัดด้านสิทธิ์ของ Google Account หรือโดเมนที่ท่านเข้าใช้งาน แต่ข้อมูลความยินยอมได้รับการอนุมัติในระบบเรียบร้อยแล้ว
-                  <span className="block mt-1 font-bold text-slate-700">
-                    *กรุณากด "ดาวน์โหลด PDF" หรือ "พิมพ์เอกสาร" ด้านล่างเพื่อบันทึกเก็บไว้เป็นหลักฐานแทน
-                  </span>
+              <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl mb-6 text-left space-y-2">
+                <p className="text-xs text-amber-800 leading-relaxed font-semibold">
+                  ⚠️ ไม่สามารถบันทึกไปยัง Google Drive ได้อัตโนมัติ:
+                </p>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  เนื่องจากแอปพลิเคชันยังอยู่ระหว่างการพัฒนา (Testing Mode) ของ Google และยังไม่ได้รับการยืนยันตัวตน (Unverified App) โดย Google จะบล็อกสิทธิ์การเข้าถึงสำหรับบัญชีทั่วไป
+                </p>
+                <div className="text-[11px] text-slate-500 bg-white p-2.5 rounded-lg border border-slate-100 space-y-1">
+                  <p className="font-bold text-slate-700">🛠️ วิธีแก้ไขสำหรับผู้พัฒนา:</p>
+                  <p>1. เข้าสู่หน้า <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">Google Cloud Console</a></p>
+                  <p>2. ไปที่เมนู <strong>APIs & Services &gt; OAuth Consent Screen</strong></p>
+                  <p>3. ในหัวข้อ <strong>Test Users</strong> ให้กดปุ่ม <strong>+ ADD USERS</strong> แล้วกรอกอีเมล Gmail ของท่าน (เช่น <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[10px]">runghealth@gmail.com</code>)</p>
+                </div>
+                <p className="text-xs text-amber-900 font-bold pt-1">
+                  *กรุณากดปุ่ม "ดาวน์โหลด PDF" หรือ "พิมพ์เอกสาร" ด้านล่างเพื่อบันทึกเก็บไว้เป็นหลักฐานแทนชั่วคราว
                 </p>
               </div>
             </>
