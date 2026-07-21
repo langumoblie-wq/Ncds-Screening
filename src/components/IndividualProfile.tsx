@@ -504,10 +504,22 @@ export const IndividualProfile: React.FC<IndividualProfileProps> = ({
                       {latestVisit.gender} • อายุ {latestVisit.age} ปี
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 flex items-center gap-1 mt-1 font-semibold">
-                    <MapPin className="w-3.5 h-3.5" />
-                    {latestVisit.address} {latestVisit.subdistrict ? `ต.${latestVisit.subdistrict} ` : ""}อ.{latestVisit.district} ({latestVisit.targetArea})
-                  </p>
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    <p className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                      {latestVisit.address && `${latestVisit.address} `}
+                      {latestVisit.subdistrict ? `ต.${latestVisit.subdistrict} ` : ""}
+                      อ.{latestVisit.district}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pl-5 text-[11px]">
+                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200/60 font-semibold flex items-center gap-1">
+                        <span className="text-slate-400 font-normal">โมเดล:</span> {latestVisit.modelType || "ไม่ได้ระบุ"}
+                      </span>
+                      <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200/60 font-semibold flex items-center gap-1">
+                        <span className="text-slate-400 font-normal">พื้นที่เป้าหมาย:</span> {latestVisit.targetArea || "ไม่ได้ระบุ"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -610,10 +622,168 @@ export const IndividualProfile: React.FC<IndividualProfileProps> = ({
 
                 <div className="border-t border-slate-100 pt-3 mt-4 text-[9px] text-slate-400 flex justify-between font-bold">
                   <span>ประวัติครอบครัว: {latestVisit.familyHistory.includes("เบาหวาน") ? "มีประวัติครอบครัว" : "ไม่มี"}</span>
-                  <span>บริโภคอาหารหวานจัด: {latestVisit.water}</span>
+                  <span>ความถี่ในการดื่ม/ทานหวาน: {latestVisit.water}</span>
                 </div>
               </div>
 
+            </div>
+
+            {/* Factor Analysis & Risk Relationships */}
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl border border-slate-700 shadow-xl overflow-hidden">
+              <div className="px-6 py-5 border-b border-slate-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                  <Sparkles className="w-32 h-32" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-400" />
+                    วิเคราะห์ความสัมพันธ์ของปัจจัยเสี่ยงและพฤติกรรมสุขภาพ
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    ประมวลผลความเชื่อมโยงจากประวัติส่วนตัว สภาพร่างกาย และแนวโน้มความเสี่ยง
+                  </p>
+                </div>
+                <div className="bg-slate-800/80 backdrop-blur-sm border border-slate-700/50 rounded-xl px-4 py-2 flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Risk Profile Insights</span>
+                </div>
+              </div>
+              
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(() => {
+                    const factors = [];
+                    const bmiNum = Number(latestVisit.bmi);
+                    
+                    if (bmiNum >= 25) {
+                      factors.push({
+                        title: "ภาวะน้ำหนักเกิน (อ้วน)",
+                        desc: `BMI ที่ ${latestVisit.bmi} เพิ่มภาระให้หัวใจทำงานหนักขึ้น และทำให้เซลล์ดื้อต่ออินซูลิน ซึ่งสัมพันธ์โดยตรงกับค่าความดันและระดับน้ำตาลที่พุ่งสูง`,
+                        bgClass: "bg-rose-500/20 border-rose-500/30",
+                        icon: <Activity className="w-5 h-5 text-rose-400" />
+                      });
+                    } else if (bmiNum > 0 && bmiNum < 18.5) {
+                      factors.push({
+                        title: "ภาวะน้ำหนักน้อย",
+                        desc: `BMI ${latestVisit.bmi} ต่ำกว่าเกณฑ์ อาจส่งผลให้ร่างกายอ่อนเพลียง่าย มวลกล้ามเนื้อน้อย ควรเน้นโภชนาการที่ครบถ้วนเพื่อเสริมสร้างความแข็งแรง`,
+                        bgClass: "bg-amber-500/20 border-amber-500/30",
+                        icon: <Activity className="w-5 h-5 text-amber-400" />
+                      });
+                    } else if (bmiNum >= 18.5 && bmiNum < 25) {
+                      factors.push({
+                        title: "น้ำหนักอยู่ในเกณฑ์ปกติ",
+                        desc: `BMI ${latestVisit.bmi} เป็นปัจจัยปกป้องที่ดีมาก ช่วยลดความเสี่ยงการเกิดโรคแทรกซ้อนทางระบบเลือดและหัวใจได้อย่างมีนัยสำคัญ`,
+                        bgClass: "bg-emerald-500/20 border-emerald-500/30",
+                        icon: <Activity className="w-5 h-5 text-emerald-400" />
+                      });
+                    }
+
+                    if (latestVisit.familyHistory && latestVisit.familyHistory.length > 0 && !latestVisit.familyHistory.includes("ไม่มีโรคประจำตัว")) {
+                      factors.push({
+                        title: "พันธุกรรม (ประวัติครอบครัว)",
+                        desc: `การมีญาติสายตรงเป็นโรค NCDs ทำให้ท่านมี "ความเสี่ยงตั้งต้น" สูงกว่าคนทั่วไป จำเป็นต้องคุมพฤติกรรมอย่างเคร่งครัดกว่าปกติ`,
+                        bgClass: "bg-purple-500/20 border-purple-500/30",
+                        icon: <User className="w-5 h-5 text-purple-400" />
+                      });
+                    }
+
+                    if (latestVisit.smoking && latestVisit.smoking.includes("สูบ")) {
+                      factors.push({
+                        title: "สารนิโคตินจากการสูบบุหรี่",
+                        desc: "คาร์บอนมอนอกไซด์ทำให้หลอดเลือดแข็งตัว หัวใจต้องบีบตัวแรงขึ้น เป็นสาเหตุสำคัญที่ทำให้ความดันโลหิตพุ่งสูง (HT)",
+                        bgClass: "bg-orange-500/20 border-orange-500/30",
+                        icon: <AlertCircle className="w-5 h-5 text-orange-400" />
+                      });
+                    }
+
+                    if (latestVisit.alcohol && latestVisit.alcohol.includes("ดื่ม")) {
+                      factors.push({
+                        title: "การบริโภคแอลกอฮอล์",
+                        desc: "การดื่มเครื่องดื่มแอลกอฮอล์ส่งผลให้ตับทำงานหนัก และทำให้ระดับน้ำตาลและไขมันไตรกลีเซอไรด์ในเลือดแกว่งตัวรุนแรง",
+                        bgClass: "bg-yellow-500/20 border-yellow-500/30",
+                        icon: <Droplet className="w-5 h-5 text-yellow-400" />
+                      });
+                    }
+
+                    if (latestVisit.sleep && latestVisit.sleep.includes("น้อย")) {
+                      factors.push({
+                        title: "คุณภาพการพักผ่อน (การนอน)",
+                        desc: "การนอนไม่พอทำให้ร่างกายเกิดความเครียดสะสม หลั่งฮอร์โมนคอร์ติซอล (Cortisol) ซึ่งจะกระตุ้นให้ทั้งความดันและน้ำตาลเพิ่มสูง",
+                        bgClass: "bg-indigo-500/20 border-indigo-500/30",
+                        icon: <Info className="w-5 h-5 text-indigo-400" />
+                      });
+                    }
+
+                    if (latestVisit.exercise && (latestVisit.exercise.includes("ไม่เคย") || latestVisit.exercise.includes("1-2"))) {
+                      factors.push({
+                        title: "การขาดการออกกำลังกาย",
+                        desc: "การเคลื่อนไหวน้อยทำให้ร่างกายเผาผลาญกลูโคสได้ช้าลง หลอดเลือดขาดความยืดหยุ่น ทำให้เสี่ยงทั้งเบาหวานและความดัน",
+                        bgClass: "bg-slate-500/20 border-slate-500/30",
+                        icon: <Heart className="w-5 h-5 text-slate-400" />
+                      });
+                    }
+
+                    if (latestVisit.sodium && (latestVisit.sodium.includes("ปานกลาง") || latestVisit.sodium.includes("จัด") || latestVisit.sodium.includes("ปรุง"))) {
+                      factors.push({
+                        title: "การบริโภคโซเดียม (ความเค็ม)",
+                        desc: "การได้รับโซเดียมสูงทำให้ร่างกายอุ้มน้ำ ปริมาณของเหลวในหลอดเลือดเพิ่มขึ้น ส่งผลให้ความดันโลหิต (HT) พุ่งสูงอย่างรวดเร็ว",
+                        bgClass: "bg-red-500/20 border-red-500/30",
+                        icon: <AlertCircle className="w-5 h-5 text-red-400" />
+                      });
+                    }
+
+                    return factors.map((factor, idx) => (
+                      <div key={idx} className="bg-slate-800/50 border border-slate-700/50 hover:border-slate-600 rounded-xl p-4 transition-colors">
+                        <div className="flex gap-3">
+                          <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center border ${factor.bgClass}`}>
+                            {factor.icon}
+                          </div>
+                          <div>
+                            <h4 className="text-[11px] font-bold text-slate-200 mb-1">{factor.title}</h4>
+                            <p className="text-[10px] text-slate-400 leading-relaxed">{factor.desc}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+                
+                {/* Summary / Trend synthesis */}
+                <div className="mt-5 p-4 rounded-xl bg-blue-900/20 border border-blue-800/30 flex gap-3 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                  <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h5 className="text-xs font-bold text-blue-300 mb-1">ภาพรวมแนวโน้มความเสี่ยงสะสม (Synthesis Report)</h5>
+                    <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                      {(() => {
+                        const bmiNum = Number(latestVisit.bmi);
+                        let insights = `เกณฑ์สีปิงปองปัจจุบันอยู่ในระดับ "${pingPongInfo.combined.nameTh}" `;
+                        const isHighRisk = pingPongInfo.combined.color === "red" || pingPongInfo.combined.color === "orange" || pingPongInfo.combined.color === "yellow" || pingPongInfo.combined.color === "dark_green";
+                        
+                        if (isHighRisk) {
+                          insights += `บ่งชี้ถึงภาวะความเสี่ยงที่ต้องเฝ้าระวังอย่างใกล้ชิด `;
+                          if (bmiNum >= 25 || (latestVisit.sodium && latestVisit.sodium.includes("จัด")) || (latestVisit.smoking && latestVisit.smoking.includes("สูบ"))) {
+                            insights += `เมื่อวิเคราะห์ร่วมกับพฤติกรรมสุขภาพพบว่า ปัจจัยหลักที่กระตุ้นความเสี่ยงมาจาก "พฤติกรรมการใช้ชีวิต (Lifestyle Factors)" โดยเฉพาะด้านโภชนาการและการจัดการน้ำหนัก หากสามารถปรับเปลี่ยนพฤติกรรมเหล่านี้ได้ จะมีโอกาสช่วยชะลอการลุกลามของโรค และอาจช่วยปรับเกณฑ์สีปิงปองให้ดีขึ้นได้อย่างมีนัยสำคัญ`;
+                          } else {
+                            insights += `เมื่อพิจารณาพฤติกรรมสุขภาพที่ดูแลมาค่อนข้างดีแล้ว ความเสี่ยงหลักอาจเป็นผลมาจากกรรมพันธุ์ (Genetics) หรือการเปลี่ยนแปลงของหลอดเลือดตามวัย ควรติดตามอาการทางการแพทย์อย่างต่อเนื่องและรับการรักษาตามแผนของแพทย์`;
+                          }
+                        } else {
+                          insights += `ถือว่าระบบเลือดและน้ำตาลทำงานอยู่ในเกณฑ์ที่น่าพอใจ `;
+                          if (bmiNum >= 25 || (latestVisit.sleep && latestVisit.sleep.includes("น้อย"))) {
+                            insights += `อย่างไรก็ตาม ยังพบปัจจัยแฝงจากพฤติกรรมบางประการ (เช่น การนอนหลับ หรือ น้ำหนักตัว) ที่อาจสะสมและส่งผลเสียในระยะยาวได้ หากรักษาพฤติกรรมที่ดีและปรับปรุงจุดเสี่ยง จะช่วยให้ห่างไกลโรค NCDs ได้อย่างยั่งยืน`;
+                          } else {
+                            insights += `เมื่อวิเคราะห์ร่วมกับพฤติกรรมสุขภาพที่ทำได้ยอดเยี่ยมแล้ว ท่านมี "ปัจจัยปกป้องโรค" ที่แข็งแรงมาก ขอให้รักษาพฤติกรรมเชิงบวกนี้ต่อไปเพื่อสุขภาพที่ดีในระยะยาว`;
+                          }
+                        }
+                        return insights;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Individual Clinical Trend Graphs Row */}
